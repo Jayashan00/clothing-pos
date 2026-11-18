@@ -79,7 +79,29 @@ Then go to **Settings → This counter** and give it a different counter code (`
 7. Add categories and products (or **Products → Import** from Excel/CSV), print labels, receive stock.
 8. Connect the cloud backup (section 3). Also download a backup file weekly.
 
-## 5. Printing — how sharpness is guaranteed
+## 5. The everyday workflow: add → tag → sell
+
+**1. Put the stock into the system: Stock → Add items fast**
+- One row per size and colour: name, size, colour, selling price, **quantity (number of pieces)**, cost.
+- Type the same name again (or press the copy button) for the other sizes. They join into one product.
+- The **icon and category are picked from the name** (in English or Sinhala). Just check the category.
+- Leave **Barcode** empty and a unique barcode is made. If the item already has a maker's barcode, click the box and scan it.
+- If an item, size and colour already exist, the quantity is **added to its stock** (no duplicates).
+- Typed rows are kept even if the computer restarts before you save.
+
+**2. Print a tag for every piece**
+- After saving, press **Print tags now**. One tag prints for every piece (4 shirts → 4 tags). Cloth by the metre gets one tag for the roll.
+- **Barcode labels** page shortcuts: **Not printed yet**, **Price changed, reprint**, **Add whole category**.
+- Stick a tag on each item.
+
+**3. Sell**
+- The cashier scans the tag. Name, size, colour and price appear on the bill.
+- On payment, **stock goes down automatically**. Returns put stock back. Receiving goods adds stock.
+- **Price check (F3)** from any page: scan a tag to see the item, price and stock in every size.
+
+**Changing a price:** edit the product. The tags for it appear under **Price changed, reprint**.
+
+## 6. Printing — how sharpness is guaranteed
 
 - Fonts (Atkinson Hyperlegible + Noto Sans Sinhala) are **bundled inside the app**, so Sinhala never falls back to a missing or blurry font, even offline.
 - Barcodes are drawn as vector lines sized in millimetres. The default bar is **0.25 mm = exactly 2 dots on a 203-dpi thermal printer** (the industry “10 mil” standard), so edges are clean.
@@ -95,7 +117,7 @@ A4/A5 office printers, any USB/Bluetooth barcode scanner (keyboard mode + Enter)
 
 Label stock: 38×25, 40×30, 50×25, 50×30 mm rolls, 35×55 mm hang tags, A4 sheets of 24, 40 or 65 labels.
 
-## 6. Keyboard shortcuts (Billing)
+## 7. Keyboard shortcuts (Billing)
 
 | Key | Action |
 |---|---|
@@ -106,9 +128,10 @@ Label stock: 38×25, 40×30, 50×25, 50×30 mm rolls, 35×55 mm hang tags, A4 sh
 | F8 | Held bills |
 | F10 | Bill discount |
 | F9 | Go to billing from any page |
+| F3 | Price check (scan any tag) |
 | F1 | Help for the current page |
 
-## 7. How “never goes down” works
+## 8. How “never goes down” works
 
 ```
 Counter (browser)  ──►  IndexedDB on this computer  ──►  Hostinger API (when online)
@@ -130,7 +153,7 @@ same size of the same item between two syncs, that item's stock figure can be of
 Workaround today: keep auto-sync at 1–2 minutes and run **Stock → Stock count** periodically.
 The proper fix (a server-side stock ledger that adds up every counter's movements) is the recommended next step.
 
-## 8. Customising the brand
+## 9. Customising the brand
 
 - Shop name, logo, receipts: in the app under **Settings** (no code needed).
 - Product name “Redi POS”: `src/components/Layout.jsx` (`Brand`), `index.html`, `vite.config.js` (PWA manifest).
@@ -138,12 +161,12 @@ The proper fix (a server-side stock ledger that adds up every counter's movement
 - Landing page text: `src/i18n/en.js` and `src/i18n/si.js` (keys starting with `land.`).
 - App icon: `public/favicon.svg`.
 
-## 9. Project structure
+## 10. Project structure
 
 ```
 src/
   App.jsx               routes
-  pages/                Landing, Login, Dashboard, POS, Products, Categories, Labels, Inventory,
+  pages/                Landing, Login, Dashboard, POS, QuickAdd, Products, Categories, Labels, Inventory,
                         Purchases, Suppliers, Customers, Sales, Returns, Promotions, Expenses,
                         Shifts, Reports, Users, Settings
   components/           layout, dialogs, help panel, icon picker, barcode, camera scanner
@@ -151,11 +174,11 @@ src/
   print/templates.jsx   receipts, labels, vouchers, shift reports, printer test page
   lib/                  pos logic, scanner detection, printing, sync, backup
   db/                   IndexedDB schema (Dexie) and demo data
-  i18n/                 en.js, si.js (800+ entries each, incl. help for every page)
+  i18n/                 en.js, si.js (840 entries each, incl. help for every page)
 server/                 Hostinger PHP + MySQL sync API
 ```
 
-## 10. Security notes
+## 11. Security notes
 
 - Staff PINs are stored hashed (SHA-256 with a per-user salt). PINs control who does what at the counter; they are not a replacement for keeping the computer itself secure.
 - The API checks a secret key on every request (constant-time comparison), uses prepared statements only, accepts only known table names, and refuses requests from websites not listed in `allowed_origins`.

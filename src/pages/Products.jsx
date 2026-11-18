@@ -120,6 +120,7 @@ export function ProductForm({ open, product, onClose, onSaved }) {
     });
     audit(user.id, product ? 'product-edit' : 'product-add', f.nameEn);
     toast.ok(t('prod.saved'));
+    if (existing.some((e) => e.labelledAt && vars.some((v) => v.id === e.id && Number(v.price) !== e.labelPrice)) && !andLabels) toast.info(t('prod.reprintHint'));
     onSaved?.(f, andLabels);
     onClose();
   };

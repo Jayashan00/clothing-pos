@@ -472,6 +472,7 @@ function PaymentModal({ open, onClose, totals, onFinish }) {
   const [voucher, setVoucher] = useState(null);
   const [print, setPrint] = useState(true);
   const amtRef = useRef(null);
+  const busy = useRef(false); // guards against a double sale from a double Enter
   useEffect(() => {
     if (open) { setPays([]); setMethod('cash'); setAmount(''); setRef(''); setVoucher(null); setPrint(settings.receipt.autoPrint); setTimeout(() => amtRef.current?.focus(), 60); }
   }, [open]); // eslint-disable-line
@@ -524,7 +525,12 @@ function PaymentModal({ open, onClose, totals, onFinish }) {
 
   return (
     <Modal open onClose={onClose} title={t('pay.title')} size="lg" icon={<Wallet size={20} />}>
-      <div className="grid md:grid-cols-[1fr_1.15fr] gap-5">
+      {/* Enter completes the sale from anywhere in this window (except buttons and the voucher box) */}
+      <div className="grid md:grid-cols-[1fr_1.15fr] gap-5" onKeyDown={(e) => {
+        if (e.key !== 'Enter' || e.repeat || e.target.tagName === 'BUTTON' || e.target.dataset?.scanTarget) return;
+        e.preventDefault(); e.stopPropagation();
+        if (!busy.current) { busy.current = true; completeNow(); setTimeout(() => { busy.current = false; }, 1500); }
+      }}>
         <div className="space-y-3">
           <div className="rounded-2xl p-4 bg-indigo-700 text-white">
             <p className="text-indigo-200 font-bold">{t('pay.total')}</p>
@@ -566,13 +572,13 @@ function PaymentModal({ open, onClose, totals, onFinish }) {
           {method === 'credit' && cust ? <p className="badge badge-red">{t('cust.owes')}: {num(cust.creditBalance || 0)}</p> : null}
           {['card', 'qr', 'bank'].includes(method) ? <input className="input" placeholder={t('pay.refPh')} value={ref} onChange={(e) => setRef(e.target.value)} /> : null}
           <input ref={amtRef} className="input text-3xl text-center !h-16 font-bold" inputMode="decimal" placeholder={num(due)} value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); completeNow(); } }} />
+            onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} />
           {method === 'cash' ? (
             <div className="grid grid-cols-5 gap-2">{quick.map((n) => <button key={n} className="btn btn-outline btn-sm !h-11" onClick={() => setAmount(String(n))}>{num(n).replace('.00', '')}</button>)}</div>
           ) : null}
           <button className="btn btn-outline w-full" onClick={() => addPay()} disabled={due <= 0}><Plus size={18} /> {t('pay.addSplit')}</button>
           <label className="flex items-center gap-2 font-bold"><input type="checkbox" className="w-5 h-5" checked={print} onChange={(e) => setPrint(e.target.checked)} /> <Printer size={18} /> {t('pay.printReceipt')}</label>
-          <button className="btn btn-success btn-lg w-full !h-16 text-xl" onClick={completeNow}><CheckCircle2 /> {t('pay.complete')}</button>
+          <button className="btn btn-success btn-lg w-full !h-16 text-xl" onClick={() => { if (busy.current) return; busy.current = true; completeNow(); setTimeout(() => { busy.current = false; }, 1500); }}><CheckCircle2 /> {t('pay.complete')}</button>
           <p className="text-center text-xs muted">{t('pay.enterHint')}</p>
         </div>
       </div>

@@ -140,6 +140,9 @@ export async function seedDemo() {
       variants.push({ id: uid(), productId: p.id, size: s, color: c, barcode: body + ean13CheckDigit(body), sku: `${cat.slice(0, 3).toUpperCase()}-${pad(seq, 4)}`, cost, price, mrp, wholesale: round2(price * 0.9), stock, reorderLevel: unit === 'pcs' ? 4 : 15 });
     }));
   });
+  // demo: everything has tags already, except the newest two products
+  const untagged = new Set(products.slice(-2).map((p) => p.id));
+  variants.forEach((v) => { if (!untagged.has(v.productId)) { v.labelledAt = now - 30 * 864e5; v.labelPrice = v.price; } });
   // a few low-stock items so alerts show in the demo
   variants[3].stock = 1; variants[17].stock = 2; variants[40].stock = 0; variants[61].stock = 3;
 

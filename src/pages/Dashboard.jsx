@@ -69,7 +69,7 @@ export default function Dashboard() {
           <ScanBarcode size={40} className="text-saffron-400" />
           <div><p className="font-display text-2xl font-bold">{t('dash.newBill')}</p><p className="text-indigo-200 text-sm">{t('dash.newBillHint')}</p></div>
         </Link> : null}
-        {can(user, 'products') ? <Link to="/app/products?new=1" className="card p-4 flex items-center gap-3 hover:border-indigo-400"><Plus className="text-indigo-600" /><span className="font-bold">{t('dash.addProduct')}</span></Link> : null}
+        {can(user, 'products') ? <Link to="/app/quick-add" className="card p-4 flex items-center gap-3 hover:border-indigo-400"><Plus className="text-indigo-600" /><span className="font-bold">{t('dash.quickAdd')}</span></Link> : null}
         {can(user, 'labels') ? <Link to="/app/labels" className="card p-4 flex items-center gap-3 hover:border-indigo-400"><Barcode className="text-indigo-600" /><span className="font-bold">{t('dash.printLabels')}</span></Link> : null}
         {can(user, 'purchases') ? <Link to="/app/purchases?new=1" className="card p-4 flex items-center gap-3 hover:border-indigo-400"><Truck className="text-indigo-600" /><span className="font-bold">{t('dash.receiveGoods')}</span></Link> : null}
       </div>

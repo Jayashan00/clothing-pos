@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ScanBarcode, ReceiptText, Undo2, Users, Wallet, Shirt, Tags, Barcode, Boxes, Truck, Factory,
-  BadgePercent, Receipt, BarChart3, UserCog, Settings, Menu, X, LogOut, Moon, Sun, Wifi, WifiOff, CloudUpload, CloudOff, AArrowUp, ShieldAlert,
+  BadgePercent, Receipt, BarChart3, UserCog, Settings, Menu, X, LogOut, Moon, Sun, Wifi, WifiOff, CloudUpload, CloudOff, AArrowUp, ShieldAlert, ListPlus, ScanSearch,
 } from 'lucide-react';
 import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
@@ -10,6 +10,7 @@ import { useAuth, can } from '../store/auth';
 import { syncNow } from '../lib/sync';
 import { requestPersistence } from '../db/db';
 import { HelpDrawer } from './Help';
+import PriceCheck, { usePriceCheck } from './PriceCheck';
 import { ClothingIcon } from '../icons/clothing';
 
 export const NAV = [
@@ -22,6 +23,7 @@ export const NAV = [
     { to: '/app/shifts', key: 'nav.shifts', icon: Wallet, perm: 'shifts' },
   ] },
   { group: 'nav.stock', items: [
+    { to: '/app/quick-add', key: 'nav.quickAdd', icon: ListPlus, perm: 'products' },
     { to: '/app/products', key: 'nav.products', icon: Shirt, perm: 'products' },
     { to: '/app/categories', key: 'nav.categories', icon: Tags, perm: 'categories' },
     { to: '/app/labels', key: 'nav.labels', icon: Barcode, perm: 'labels' },
@@ -180,6 +182,8 @@ export default function Layout() {
               {cloudOk ? <CloudUpload size={14} /> : <CloudOff size={14} />} {cloudOk ? t('status.synced') : t('status.notSynced')}
             </span>
           ) : null}
+          <button className="btn btn-outline btn-sm !h-10 hidden sm:inline-flex" onClick={() => usePriceCheck.getState().set({ open: true })} title="F3"><ScanSearch size={18} /> {t('pc.title')}</button>
+          <button className="icon-btn sm:hidden" onClick={() => usePriceCheck.getState().set({ open: true })} aria-label={t('pc.title')}><ScanSearch size={21} /></button>
           <LangSwitch />
           <button className={`icon-btn ${bigText ? 'bg-indigo-700 text-white hover:!bg-indigo-800' : ''}`} onClick={() => set({ bigText: !bigText })} title={t('prefs.bigText')} aria-label={t('prefs.bigText')} aria-pressed={bigText}><AArrowUp size={22} /></button>
           <button className="icon-btn" onClick={() => set({ theme: theme === 'dark' ? 'light' : 'dark' })} title={t('prefs.theme')} aria-label={t('prefs.theme')}>{theme === 'dark' ? <Sun size={21} /> : <Moon size={21} />}</button>
@@ -195,6 +199,7 @@ export default function Layout() {
         </main>
       </div>
       <HelpDrawer />
+      <PriceCheck />
     </div>
   );
 }

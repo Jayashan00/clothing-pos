@@ -78,7 +78,7 @@ export const ICONS = [
     d: ['M5 5h14v14H5z', 'M7.5 7.5h9v9h-9z', 'M15 19l4-4'] },
   { id: 'towel', en: 'Towel', si: 'තුවාය', kw: ['towel', 'bath', 'තුවා', 'තුවාය'],
     d: ['M3 4h18', 'M6 4v14q0 2 2 2h8q2 0 2-2V4', 'M6 15h12M6 16.8h12'] },
-  { id: 'bedsheet', en: 'Bed linen', si: 'ඇඳ ඇතිරිලි', kw: ['bed', 'sheet', 'pillow', 'linen', 'blanket', 'quilt', 'ඇඳ', 'ඇතිරිලි', 'කොට්ට', 'බ්ලැන්කට්', 'පොරෝන'],
+  { id: 'bedsheet', en: 'Bed linen', si: 'ඇඳ ඇතිරිලි', kw: ['bed', 'sheet', 'pillow', 'bed linen', 'blanket', 'quilt', 'ඇඳ', 'ඇතිරිලි', 'කොට්ට', 'බ්ලැන්කට්', 'පොරෝන'],
     d: ['M2 19V8', 'M2 13h20v6', 'M2 16h20', 'M4 13v-2.5Q4 9 5.5 9h3Q10 9 10 10.5V13', 'M11 13v-2h11v2'] },
   { id: 'curtain', en: 'Curtain', si: 'තිර රෙදි', kw: ['curtain', 'drape', 'blind', 'තිර', 'කර්ටන්'],
     d: ['M2 3.5h20', 'M4 3.5q-.5 8.5 2 16.5h3q-1-8 1-16.5', 'M20 3.5q.5 8.5-2 16.5h-3q1-8-1-16.5', 'M5.6 12.5l3.4-.8M18.4 12.5l-3.4-.8'] },
@@ -117,6 +117,9 @@ export function ClothingIcon({ id, size = 24, stroke = 1.6, className = '', titl
 }
 
 // Suggests icons for a product name, best match first. Works with Sinhala too.
+// Material words (cotton, linen, silk) count for little, and words later in the name
+// count for more, because the garment is usually the last word: "linen kurta top".
+const WEAK = new Set(['cotton', 'linen', 'silk', 'material', 'කපු', 'සේද', 'ලිනන්']);
 export function recommendIcons(text, limit = 4) {
   const q = String(text || '').toLowerCase().trim();
   if (!q) return [];
@@ -125,11 +128,12 @@ export function recommendIcons(text, limit = 4) {
     let best = 0;
     for (const kw of [...icon.kw, icon.en.toLowerCase(), icon.si]) {
       const k = kw.toLowerCase();
-      if (k && q.includes(k)) best = Math.max(best, k.length + (q.startsWith(k) ? 2 : 0));
-      else if (k.length > 3 && q.split(/\s+/).some((w) => w.length > 2 && k.startsWith(w))) best = Math.max(best, w8(k));
+      const at = k ? q.lastIndexOf(k) : -1;
+      if (at < 0) continue;
+      const score = (WEAK.has(k) ? 1 : k.length) + (3 * at) / q.length;
+      best = Math.max(best, score);
     }
     if (best) scored.push({ id: icon.id, score: best });
   }
   return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((s) => s.id);
 }
-const w8 = (k) => Math.min(3, k.length / 3);

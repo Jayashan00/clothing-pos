@@ -11,6 +11,7 @@ import POS from './pages/POS';
 
 const Products = lazy(() => import('./pages/Products'));
 const Categories = lazy(() => import('./pages/Categories'));
+const QuickAdd = lazy(() => import('./pages/QuickAdd'));
 const Labels = lazy(() => import('./pages/Labels'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Purchases = lazy(() => import('./pages/Purchases'));
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="pos" element={<Boundary><POS /></Boundary>} />
           <Route path="products" element={lazyEl(Products)} />
           <Route path="categories" element={lazyEl(Categories)} />
+          <Route path="quick-add" element={lazyEl(QuickAdd)} />
           <Route path="labels" element={lazyEl(Labels)} />
           <Route path="inventory" element={lazyEl(Inventory)} />
           <Route path="purchases" element={lazyEl(Purchases)} />
