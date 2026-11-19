@@ -1,4 +1,4 @@
-import { db, nextSeq, audit } from '../db/db';
+import { db, nextUnique, audit } from '../db/db';
 import { uid, round2, pad, sum, startOfDay } from './util';
 
 export const PAYMENT_METHODS = ['cash', 'card', 'qr', 'bank', 'credit', 'voucher', 'points'];
@@ -58,8 +58,7 @@ export async function currentShift(terminal) {
 
 export async function completeSale({ cart, totals, payments, user, settings }) {
   const terminal = settings.terminal.code || 'T1';
-  const seq = await nextSeq('bill:' + terminal);
-  const billNo = `${terminal}-${pad(seq, 6)}`;
+  const billNo = await nextUnique('bill:' + terminal, 'sales', 'billNo', `${terminal}-`, (n) => `${terminal}-${pad(n, 6)}`, (v) => parseInt(v.slice(terminal.length + 1), 10) || 0);
   const shift = await currentShift(terminal);
   const paid = round2(sum(payments, (p) => p.amount));
   const nonCash = round2(sum(payments.filter((p) => p.method !== 'cash'), (p) => p.amount));
@@ -140,8 +139,7 @@ export async function completeSale({ cart, totals, payments, user, settings }) {
 
 export async function processReturn({ sale, items, refundMethod, reason, user, settings }) {
   const terminal = settings.terminal.code || 'T1';
-  const seq = await nextSeq('return:' + terminal);
-  const returnNo = `R${terminal}-${pad(seq, 5)}`;
+  const returnNo = await nextUnique('return:' + terminal, 'returns', 'returnNo', `R${terminal}-`, (n) => `R${terminal}-${pad(n, 5)}`, (v) => parseInt(v.slice(terminal.length + 2), 10) || 0);
   const shift = await currentShift(terminal);
   const lines = items.filter((x) => x.qty > 0).map((x) => {
     const it = sale.items[x.index];
@@ -151,6 +149,9 @@ export async function processReturn({ sale, items, refundMethod, reason, user, s
   let voucher = null;
   const ret = { id: uid(), returnNo, saleId: sale.id, billNo: sale.billNo, date: Date.now(), items: lines, amount, refundMethod, reason, userId: user.id, userName: user.name, shiftId: shift?.id || null, customerId: sale.customerId };
 
+  // numbers are taken before the transaction (the number counter lives in another table)
+  const cnCode = refundMethod === 'creditNote'
+    ? await nextUnique('voucher', 'vouchers', 'code', 'CN', (n) => 'CN' + pad(n, 7), (v) => parseInt(v.slice(2), 10) || 0) : null;
   await db.transaction('rw', [db.sales, db.variants, db.stockMoves, db.returns, db.vouchers, db.customers], async () => {
     const fresh = await db.sales.get(sale.id);
     const saleItems = fresh.items.map((it) => ({ ...it }));
@@ -167,7 +168,7 @@ export async function processReturn({ sale, items, refundMethod, reason, user, s
     const all = saleItems.every((it) => (it.returnedQty || 0) >= it.qty);
     await db.sales.update(sale.id, { items: saleItems, status: all ? 'returned' : 'partial', returnedAmount: round2((fresh.returnedAmount || 0) + amount) });
     if (refundMethod === 'creditNote') {
-      const code = 'CN' + pad(await nextSeq('voucher'), 7);
+      const code = cnCode;
       voucher = { id: uid(), code, type: 'creditNote', amount, balance: amount, status: 'active', issuedAt: ret.date, expiresAt: ret.date + 90 * 864e5, customerId: sale.customerId, ref: returnNo };
       await db.vouchers.add(voucher);
       ret.voucherCode = code;
@@ -205,8 +206,7 @@ export async function voidSale(sale, user, reason) {
 }
 
 export async function receiveGoods({ supplierId, items, paid, note, invoiceNo, user, updateCost = true, updatePrice = true }) {
-  const seq = await nextSeq('grn');
-  const grnNo = 'GRN-' + pad(seq, 5);
+  const grnNo = await nextUnique('grn', 'purchases', 'grnNo', 'GRN-', (n) => 'GRN-' + pad(n, 5), (v) => parseInt(v.slice(4), 10) || 0);
   const total = round2(sum(items, (i) => i.qty * i.cost));
   const purchase = { id: uid(), grnNo, supplierId, invoiceNo: invoiceNo || '', date: Date.now(), items, total, paid: round2(paid || 0), note: note || '', userId: user.id };
   await db.transaction('rw', [db.purchases, db.variants, db.stockMoves, db.suppliers], async () => {

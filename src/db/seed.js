@@ -101,10 +101,15 @@ export async function seedIfEmpty() {
   return true;
 }
 
+// A real new shop: the owner account plus the standard clothing categories (all editable).
 export async function createOwnerOnly() {
   const id = uid();
   await db.users.add({ id, name: 'Owner', username: 'admin', role: 'admin', active: true, pinHash: await hashPin(id, '1234') });
+  if (!(await db.categories.count())) {
+    await db.categories.bulkAdd(CATS.map(([key, en, si, icon, color], i) => ({ id: uid(), key, nameEn: en, nameSi: si, icon, color, sort: i })));
+  }
   await setMeta('seeded', true);
+  await setMeta('ledger:v1', true);
 }
 
 export async function seedDemo() {
@@ -221,7 +226,7 @@ export async function seedDemo() {
     await db.promotions.bulkAdd(promotions);
     await db.vouchers.bulkAdd(vouchers);
     await db.meta.bulkPut([
-      { key: 'seq:barcode', value: seq }, { key: 'seq:bill:T1', value: bill }, { key: 'seq:voucher', value: 1 },
+      { key: 'seq:barcode:20', value: seq }, { key: 'seq:bill:T1', value: bill }, { key: 'seq:giftvoucher', value: 1 },
       { key: 'seeded', value: true }, { key: 'demo', value: true },
     ]);
   });

@@ -4,15 +4,19 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
-$configFile = __DIR__ . '/config.php';
-if (!is_file($configFile)) {
-    http_response_code(500);
-    header('Content-Type: application/json');
+// config.php is looked for next to this file (shared hosting) or two folders up,
+// outside the public web folder (VPS install: /var/www/<site>/config.php).
+$configFile = null;
+foreach ([__DIR__ . '/config.php', dirname(__DIR__, 2) . '/config.php'] as $c) { if (is_file($c)) { $configFile = $c; break; } }
+if (!$configFile) {
+    if (PHP_SAPI !== 'cli') { http_response_code(500); header('Content-Type: application/json'); }
     echo json_encode(['ok' => false, 'error' => 'config.php is missing. Copy config.sample.php to config.php.']);
-    exit;
+    exit(1);
 }
 $CONFIG = require $configFile;
+$IS_CLI = PHP_SAPI === 'cli';
 
+if (!$IS_CLI) {
 // ---- CORS (the POS runs on Vercel, the API on Hostinger) ----
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = $CONFIG['allowed_origins'] ?? [];
@@ -27,14 +31,16 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+}
 
 function respond(array $data, int $code = 200): void {
-    http_response_code($code);
+    if (PHP_SAPI !== 'cli') http_response_code($code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // ---- API key ----
+if (!$IS_CLI) {
 $key = $_SERVER['HTTP_X_API_KEY'] ?? '';
 if (!is_string($CONFIG['api_key'] ?? null) || strlen($CONFIG['api_key']) < 16 || strpos($CONFIG['api_key'], 'CHANGE-ME') === 0) {
     respond(['ok' => false, 'error' => 'Set a real api_key in config.php'], 500);
@@ -42,6 +48,7 @@ if (!is_string($CONFIG['api_key'] ?? null) || strlen($CONFIG['api_key']) < 16 ||
 if (!hash_equals($CONFIG['api_key'], (string)$key)) {
     usleep(300000); // slow down guessing
     respond(['ok' => false, 'error' => 'Wrong API key'], 401);
+}
 }
 
 // ---- Database ----
@@ -76,3 +83,24 @@ function db(): PDO {
 
 const STORES = ['categories','products','variants','customers','suppliers','sales','returns','purchases',
                 'stockMoves','expenses','shifts','promotions','vouchers','users','audit'];
+
+// Writes every record as one JSON document in the same format as a Redi POS backup file,
+// so the server copy can be restored on any computer or loaded into a new server.
+function export_all($out): array {
+    $pdo = db();
+    $counts = [];
+    fwrite($out, '{"app":"redipos","version":1,"source":"server","exportedAt":' . json_encode(gmdate('c')) . ',"tables":{');
+    $firstTable = true;
+    foreach (STORES as $store) {
+        fwrite($out, ($firstTable ? '' : ',') . json_encode($store) . ':[');
+        $firstTable = false;
+        $q = $pdo->prepare('SELECT data FROM redipos_records WHERE store = :s AND deleted = 0 ORDER BY id');
+        $q->execute([':s' => $store]);
+        $n = 0;
+        while ($row = $q->fetch(PDO::FETCH_NUM)) { fwrite($out, ($n ? ',' : '') . $row[0]); $n++; }
+        fwrite($out, ']');
+        $counts[$store] = $n;
+    }
+    fwrite($out, '},"counts":' . json_encode($counts) . '}');
+    return $counts;
+}

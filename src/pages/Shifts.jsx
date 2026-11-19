@@ -11,6 +11,10 @@ import { Modal, toast, Field, Empty } from '../components/ui';
 import { PageHeader } from '../components/Help';
 import { Page } from '../components/Layout';
 import { printShift } from '../print/templates';
+import { runFolderBackup } from '../lib/autobackup';
+import { downloadExcel } from '../lib/excel';
+import { exportAll } from '../lib/backup';
+import { downloadText, dayKey, startOfDay, endOfDay } from '../lib/util';
 
 const NOTES = [5000, 2000, 1000, 500, 100, 50, 20, 10, 5, 2, 1];
 
@@ -88,6 +92,16 @@ export default function Shifts() {
     audit(user.id, 'shift-close', `${counted} vs ${s.expected}`);
     printShift(closed, s, settings, true);
     setCloseM(false); toast.ok(t('shift.closedOk'));
+    // End of day: save the full backup and today's Excel sheet.
+    const r = await runFolderBackup({ force: true });
+    if (r.ok) toast.ok(t('bk.savedFolder'));
+    else {
+      // no backup folder on this computer: download the files instead
+      const today = dayKey(Date.now());
+      await downloadExcel(startOfDay(), endOfDay(), `Day ${today}`, `redipos-${today}.xlsx`);
+      downloadText(`redipos-backup-${today}.json`, JSON.stringify(await exportAll()), 'application/json');
+      toast.info(t('bk.downloaded'));
+    }
   };
 
   return (

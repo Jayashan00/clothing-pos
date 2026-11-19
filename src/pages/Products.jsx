@@ -300,7 +300,15 @@ export default function Products() {
       const code = col(r, 'barcode') || await generateBarcode(settings.labels.format, settings.labels.prefix);
       const existing = await db.variants.where('barcode').equals(code).first();
       const row = { productId: p.id, size: col(r, 'size'), color: col(r, 'color'), barcode: code, cost: Number(col(r, 'cost')) || 0, price: Number(col(r, 'price')) || 0, mrp: Number(col(r, 'mrp')) || 0, stock: Number(col(r, 'stock')) || 0 };
-      if (existing) { await db.variants.update(existing.id, row); updated++; } else { await db.variants.add({ id: uid(), sku: '', wholesale: 0, reorderLevel: settings.stock.lowDefault, ...row }); created++; }
+      if (existing) {
+        const delta = round2(row.stock - (Number(existing.stock) || 0));
+        await db.variants.update(existing.id, row); updated++;
+        if (delta) await db.stockMoves.add({ id: uid(), variantId: existing.id, date: Date.now(), type: 'correction', qty: delta, ref: 'Import', userId: user.id });
+      } else {
+        const id = uid();
+        await db.variants.add({ id, sku: '', wholesale: 0, reorderLevel: settings.stock.lowDefault, ...row }); created++;
+        if (row.stock) await db.stockMoves.add({ id: uid(), variantId: id, date: Date.now(), type: 'opening', qty: row.stock, ref: 'Import', userId: user.id });
+      }
     }
     toast.ok(t('prod.imported', { created, updated }));
     setImportOpen(false);

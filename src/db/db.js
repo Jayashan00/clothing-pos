@@ -73,3 +73,18 @@ export async function requestPersistence() {
   try { if (navigator.storage && navigator.storage.persist) return await navigator.storage.persist(); } catch { /* */ }
   return false;
 }
+
+// Next free number for bills, returns, deliveries, vouchers and barcodes.
+// If the counter is behind (new computer, changed counter code, moved to a new domain),
+// it jumps past the highest number already used, so numbers never repeat.
+export async function nextUnique(seqName, table, field, prefix, make, parse) {
+  for (let i = 0; i < 6; i++) {
+    const n = await nextSeq(seqName);
+    const value = make(n);
+    if (!(await db[table].where(field).equals(value).first())) return value;
+    const highest = await db[table].where(field).startsWith(prefix).last();
+    const top = highest ? parse(highest[field]) : n;
+    await db.meta.put({ key: 'seq:' + seqName, value: Math.max(n, top) });
+  }
+  throw new Error('Could not find a free number for ' + seqName);
+}

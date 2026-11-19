@@ -7,6 +7,8 @@ import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
 import { money, num, sum, round2, dayKey, fmtDate, toCSV, downloadText } from '../lib/util';
 import { printReact } from '../lib/print';
+import { downloadExcel } from '../lib/excel';
+import { FileSpreadsheet } from 'lucide-react';
 import { Tabs, Stat, ProductIcon, Empty } from '../components/ui';
 import { PageHeader } from '../components/Help';
 import { Page } from '../components/Layout';
@@ -114,7 +116,8 @@ export default function Reports() {
   return (
     <Page>
       <PageHeader title={t('nav.reports')} subtitle={subtitle} help="reports" icon={<BarChart3 size={24} />}
-        actions={<><button className="btn btn-outline" onClick={exportCSV}><Download size={18} /> {t('common.export')}</button><button className="btn btn-outline" onClick={print}><Printer size={18} /> {t('common.print')}</button></>} />
+        actions={<><button className="btn btn-primary" onClick={() => downloadExcel(r.range[0], r.range[1], subtitle, `redipos-${fmtDate(r.range[0]).replace(/ /g, '')}-${fmtDate(r.range[1]).replace(/ /g, '')}.xlsx`)}><FileSpreadsheet size={18} /> {t('bk.excel')}</button>
+          <button className="btn btn-outline" onClick={exportCSV}><Download size={18} /> CSV</button><button className="btn btn-outline" onClick={print}><Printer size={18} /> {t('common.print')}</button></>} />
       <div className="mb-3"><RangePicker r={r} /></div>
       <div className="mb-4 overflow-x-auto"><Tabs value={tab} onChange={setTab} tabs={['summary', 'category', 'product', 'slow', 'cashier', 'payment', 'stock'].map((k) => ({ id: k, label: t('rep.t.' + k) }))} /></div>
 

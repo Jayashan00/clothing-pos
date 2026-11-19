@@ -12,6 +12,7 @@ if (!is_array($in)) respond(['ok' => false, 'error' => 'Invalid JSON'], 400);
 
 $terminal = substr(preg_replace('/[^A-Za-z0-9]/', '', (string)($in['terminal'] ?? '')), 0, 12);
 $since = max(0, (int)($in['since'] ?? 0));
+$wantPull = !array_key_exists('pull', $in) || $in['pull'] !== false; // upload-only requests skip the download part
 $changes = is_array($in['changes'] ?? null) ? $in['changes'] : [];
 $deletions = is_array($in['deletions'] ?? null) ? $in['deletions'] : [];
 
@@ -63,6 +64,8 @@ try {
     error_log('Redi POS sync: ' . $e->getMessage());
     respond(['ok' => false, 'error' => 'Could not save records'], 500);
 }
+
+if (!$wantPull) respond(['ok' => true, 'received' => $received]);
 
 // Send back what changed since the client's cursor, in pages.
 $LIMIT = 2000;

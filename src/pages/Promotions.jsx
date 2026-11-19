@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { BadgePercent, Plus, Pencil, Trash2, Ticket, Printer } from 'lucide-react';
-import { db, removeRecord, nextSeq, audit } from '../db/db';
+import { db, removeRecord, nextUnique, audit } from '../db/db';
 import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
 import { useAuth } from '../store/auth';
@@ -35,7 +35,7 @@ export default function Promotions() {
   const issue = async () => {
     const amt = Number(gv.amount); if (!(amt > 0)) return toast.err(t('inv.enterQty'));
     const shift = await currentShift(settings.terminal.code);
-    const v = { id: uid(), code: 'GV' + pad(await nextSeq('voucher'), 7), type: 'gift', amount: amt, balance: amt, status: 'active', issuedAt: Date.now(), expiresAt: Date.now() + Number(gv.months) * 30 * 864e5, buyer: gv.buyer, paidMethod: gv.method, terminal: settings.terminal.code, shiftId: shift?.id || null, ref: gv.buyer ? `For ${gv.buyer}` : '' };
+    const v = { id: uid(), code: await nextUnique('giftvoucher', 'vouchers', 'code', 'GV', (n) => 'GV' + pad(n, 7), (v) => parseInt(v.slice(2), 10) || 0), type: 'gift', amount: amt, balance: amt, status: 'active', issuedAt: Date.now(), expiresAt: Date.now() + Number(gv.months) * 30 * 864e5, buyer: gv.buyer, paidMethod: gv.method, terminal: settings.terminal.code, shiftId: shift?.id || null, ref: gv.buyer ? `For ${gv.buyer}` : '' };
     await db.vouchers.add(v); audit(user.id, 'voucher-issue', `${v.code} ${amt}`);
     printVoucher(v, settings); toast.ok(t('promo.issued', { code: v.code })); setGv(null);
   };

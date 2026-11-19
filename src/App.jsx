@@ -2,6 +2,12 @@ import { Component, lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useApplyHtmlPrefs, useT } from './i18n';
 import { seedIfEmpty } from './db/seed';
+import { getMeta } from './db/db';
+import { ensureLedger } from './lib/stock';
+import Setup from './pages/Setup';
+
+// Demo build (Vercel preview) fills a sample shop. The server build starts empty.
+export const DEMO = import.meta.env.VITE_DEMO !== 'false';
 import { ToastHost, DialogHost } from './components/ui';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -53,14 +59,26 @@ const Router = __SINGLE__ ? MemoryRouter : BrowserRouter;
 export default function App() {
   useApplyHtmlPrefs();
   const [ready, setReady] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const t = useT();
-  useEffect(() => { seedIfEmpty().catch(console.error).finally(() => setReady(true)); }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (DEMO) await seedIfEmpty();
+        if (await getMeta('seeded')) await ensureLedger();
+        else setNeedsSetup(true);
+      } catch (e) { console.error(e); }
+      setReady(true);
+    })();
+  }, []);
+  if (ready && needsSetup) return <><Setup onDone={() => { setNeedsSetup(false); ensureLedger().catch(console.error); window.history.replaceState(null, '', '/login'); }} /><ToastHost /></>;
   if (!ready) return <div className="h-dvh grid place-items-center"><div className="text-center"><Loading /><p className="muted">{t('common.loading')}</p></div></div>;
   const lazyEl = (C) => <Boundary><Suspense fallback={<Loading />}><C /></Suspense></Boundary>;
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={DEMO ? <Landing /> : <Navigate to="/login" replace />} />
+        <Route path="/about" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={<Boundary><Layout /></Boundary>}>
           <Route index element={<Boundary><Dashboard /></Boundary>} />

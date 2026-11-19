@@ -8,6 +8,7 @@ import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
 import { useAuth, can } from '../store/auth';
 import { syncNow } from '../lib/sync';
+import { folderState, runFolderBackup, allowFolder } from '../lib/autobackup';
 import { requestPersistence } from '../db/db';
 import { HelpDrawer } from './Help';
 import PriceCheck, { usePriceCheck } from './PriceCheck';
@@ -134,6 +135,17 @@ export default function Layout() {
     return () => { clearInterval(id); window.removeEventListener('online', syncNow); };
   }, [sync.url, sync.key, sync.auto, sync.intervalMin]);
 
+  // Automatic backups into the chosen folder (checked every 15 minutes, written every 2 hours)
+  const [folder, setFolder] = useState(null);
+  useEffect(() => {
+    if (!user) return undefined;
+    const tick = async () => { await runFolderBackup(); setFolder(await folderState()); };
+    tick();
+    const id = setInterval(tick, 15 * 60000);
+    return () => clearInterval(id);
+  }, [user]);
+  const canBackup = user && ['admin', 'manager'].includes(user.role);
+
   // F9 jumps to billing from anywhere
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'F9') { e.preventDefault(); nav('/app/pos'); } };
@@ -188,6 +200,14 @@ export default function Layout() {
           <button className={`icon-btn ${bigText ? 'bg-indigo-700 text-white hover:!bg-indigo-800' : ''}`} onClick={() => set({ bigText: !bigText })} title={t('prefs.bigText')} aria-label={t('prefs.bigText')} aria-pressed={bigText}><AArrowUp size={22} /></button>
           <button className="icon-btn" onClick={() => set({ theme: theme === 'dark' ? 'light' : 'dark' })} title={t('prefs.theme')} aria-label={t('prefs.theme')}>{theme === 'dark' ? <Sun size={21} /> : <Moon size={21} />}</button>
         </header>
+        {canBackup && folder && (!folder.configured || folder.permission !== 'granted') ? (
+          <div className="shrink-0 px-4 py-2 bg-saffron-100 text-saffron-900 dark:bg-saffron-900/40 dark:text-saffron-100 flex flex-wrap items-center gap-3 text-sm font-bold">
+            <span className="flex-1 min-w-[14rem]">{folder.configured ? t('bk.needAllow', { name: folder.name }) : t('bk.noFolder')}</span>
+            {folder.configured
+              ? <button className="btn btn-primary btn-sm" onClick={async () => { if (await allowFolder()) { await runFolderBackup({ force: true }); setFolder(await folderState()); } }}>{t('bk.allow')}</button>
+              : <button className="btn btn-primary btn-sm" onClick={() => nav('/app/settings?tab=backup')}>{t('bk.setUp')}</button>}
+          </div>
+        ) : null}
         <main className="flex-1 min-h-0 overflow-y-auto scroll-thin" id="main">
           {allowed ? <Outlet /> : (
             <div className="p-10 text-center max-w-md mx-auto">

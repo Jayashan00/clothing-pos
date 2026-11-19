@@ -3,7 +3,12 @@ import { Settings as Gear, Store, ReceiptText, Barcode, Percent, MonitorSmartpho
 import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
 import { useAuth } from '../store/auth';
-import { syncNow, testConnection, joinFromCloud } from '../lib/sync';
+import { syncNow, testConnection, joinFromCloud, compareWithServer, downloadServerExport, unsyncedCount } from '../lib/sync';
+import { folderSupported, folderState, chooseFolder, allowFolder, runFolderBackup } from '../lib/autobackup';
+import { downloadExcel, monthRange, monthKey } from '../lib/excel';
+import { useSearchParams } from 'react-router-dom';
+import { FolderOpen, FileSpreadsheet, Scale, CloudUpload } from 'lucide-react';
+import { startOfDay, endOfDay } from '../lib/util';
 import { exportAll, importAll, wipeBusinessData } from '../lib/backup';
 import { db } from '../db/db';
 import { seedDemo, createOwnerOnly } from '../db/seed';
@@ -43,7 +48,13 @@ export default function Settings() {
   const s = useSettings();
   const user = useAuth((x) => x.user);
   const logout = useAuth((x) => x.logout);
-  const [tab, setTab] = useState('shop');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(params.get('tab') || 'shop');
+  const [fstate, setFstate] = useState(null);
+  const [cmp, setCmp] = useState(null);
+  const [busy, setBusy] = useState('');
+  const refreshFolder = async () => setFstate(await folderState());
+  useEffect(() => { refreshFolder(); }, []);
   const [usage, setUsage] = useState(null);
   const [testing, setTesting] = useState(false);
   useEffect(() => { navigator.storage?.estimate?.().then(setUsage).catch(() => {}); }, []);
@@ -55,8 +66,16 @@ export default function Settings() {
   ];
 
   const doBackup = async () => { const data = await exportAll(); downloadText(`redipos-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data)); toast.ok(t('set.backupDone')); };
+  const excel = async (which) => {
+    const now = Date.now();
+    if (which === 'today') return downloadExcel(startOfDay(), endOfDay(), 'Today', `redipos-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    if (which === 'month') { const [a, b] = monthRange(); return downloadExcel(a, b, `Month ${monthKey()}`, `redipos-${monthKey()}.xlsx`); }
+    if (which === 'last') { const p = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15).getTime(); const [a, b] = monthRange(p); return downloadExcel(a, b, `Month ${monthKey(p)}`, `redipos-${monthKey(p)}.xlsx`); }
+    return downloadExcel(0, now, 'All time', `redipos-all-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
   const doRestore = async (file) => {
     if (!(await confirmDialog({ title: t('set.restore'), message: t('set.restoreMsg'), danger: true, okText: t('set.restore') }))) return;
+    await doBackup(); // safety copy of what is on this computer now
     try { await importAll(JSON.parse(await file.text())); toast.ok(t('set.restored')); setTimeout(() => window.location.reload(), 800); } catch (e) { toast.err(String(e.message || e)); }
   };
   const startFresh = async () => {
@@ -204,11 +223,35 @@ export default function Settings() {
                 <button className="btn btn-outline" disabled={testing} onClick={async () => { setTesting(true); const r = await testConnection(s.sync.url, s.sync.key); setTesting(false); r.ok ? toast.ok(t('set.connOk')) : toast.err(t('set.connFail') + ' ' + r.message); }}><CheckCircle2 size={18} /> {t('set.testConn')}</button>
                 <button className="btn btn-primary" onClick={async () => { const r = await syncNow(); r.ok ? toast.ok(t('set.synced', { up: r.pushed, down: r.pulled })) : toast.err(t('set.syncFail') + ' ' + (r.error || '')); }}><RefreshCw size={18} /> {t('set.syncNow')}</button>
               </div>
+              {!s.sync.url ? <button className="btn btn-ghost btn-sm" onClick={() => s.setSection('sync', { url: `${window.location.origin}/api` })}>{t('srv.useThis')}</button> : null}
+              <div className="rounded-2xl p-4 border-2 line space-y-3">
+                <p className="font-bold flex items-center gap-2"><Scale size={18} /> {t('srv.compare')}</p>
+                <p className="text-sm muted">{t('srv.compareHint')}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn btn-outline" disabled={!!busy} onClick={async () => { setBusy('cmp'); try { setCmp(await compareWithServer()); } catch (e) { toast.err(String(e.message || e)); } setBusy(''); }}><Scale size={18} /> {t('srv.compareBtn')}</button>
+                  {user.role === 'admin' ? <button className="btn btn-outline" disabled={!!busy} onClick={async () => {
+                    if (!(await confirmDialog({ title: t('srv.uploadAll'), message: t('srv.uploadAllMsg') }))) return;
+                    setBusy('up'); const r = await syncNow({ full: true }); setBusy('');
+                    if (r.ok) { toast.ok(t('set.synced', { up: r.pushed, down: r.pulled })); setCmp(await compareWithServer()); } else toast.err(t('set.syncFail') + ' ' + (r.error || ''));
+                  }}><CloudUpload size={18} /> {busy === 'up' ? t('setup.working') : t('srv.uploadAll')}</button> : null}
+                  <button className="btn btn-outline" disabled={!!busy} onClick={async () => { try { await downloadServerExport(); } catch (e) { toast.err(String(e.message || e)); } }}><Download size={18} /> {t('srv.download')}</button>
+                </div>
+                {cmp ? (
+                  <div className="overflow-x-auto"><table className="table text-sm">
+                    <thead><tr><th>{t('srv.what')}</th><th className="text-right">{t('srv.here')}</th><th className="text-right">{t('srv.server')}</th><th /></tr></thead>
+                    <tbody>{cmp.map((r) => <tr key={r.table}><td>{r.table}</td><td className="text-right">{r.local}</td><td className="text-right">{r.server}</td>
+                      <td>{r.local === r.server ? <span className="badge badge-green">✓ {t('srv.same')}</span> : <span className="badge badge-gold">{r.local > r.server ? t('srv.notUploaded') : t('srv.notDownloaded')}</span>}</td></tr>)}</tbody>
+                  </table>
+                  <p className={`font-bold mt-2 ${cmp.every((r) => r.local === r.server) ? 'text-leaf-600' : 'text-saffron-700'}`}>{cmp.every((r) => r.local === r.server) ? t('srv.allSame') : t('srv.notSame')}</p></div>
+                ) : null}
+              </div>
               {user.role === 'admin' ? (
                 <div className="rounded-2xl p-4 border-2 border-dashed line space-y-2">
                   <p className="font-bold">{t('set.joinCloud')}</p>
                   <p className="text-sm muted">{t('set.joinCloudHint')}</p>
                   <button className="btn btn-outline" onClick={async () => {
+                    const pending = await unsyncedCount();
+                    if (pending > 0) { toast.err(t('srv.pendingBlock', { n: pending })); return; }
                     if (!(await confirmDialog({ title: t('set.joinCloud'), message: t('set.joinCloudMsg'), danger: true, okText: t('set.joinCloud') }))) return;
                     await doBackup();
                     const r = await joinFromCloud();
@@ -225,20 +268,45 @@ export default function Settings() {
           ) : null}
 
           {tab === 'backup' ? (
-            <div className="space-y-4 max-w-xl">
+            <div className="space-y-4 max-w-2xl">
+              <div className="rounded-2xl p-4 border-2 line space-y-3">
+                <p className="font-bold flex items-center gap-2"><FolderOpen size={18} /> {t('bk.folderTitle')}</p>
+                <p className="text-sm">{t('bk.folderIntro')}</p>
+                {!folderSupported() ? <p className="text-sm text-maroon-600 font-bold">{t('bk.unsupported')}</p> : (<>
+                  {fstate?.configured ? (
+                    <div className="text-sm rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                      <p>{t('bk.folder')}: <b>{fstate.name}</b> · {fstate.permission === 'granted' ? <span className="badge badge-green">{t('bk.active')}</span> : <span className="badge badge-gold">{t('bk.needsAllow')}</span>}</p>
+                      <p>{t('bk.last')}: <b>{fstate.last ? fmtDateTime(fstate.last) : '—'}</b></p>
+                      {fstate.lastError ? <p className="text-maroon-600">{fstate.lastError}</p> : null}
+                    </div>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn btn-primary" onClick={async () => { try { await chooseFolder(); const r = await runFolderBackup({ force: true }); r.ok ? toast.ok(t('bk.savedFolder')) : toast.err(r.error || r.reason); } catch (e) { if (e.name !== 'AbortError') toast.err(String(e.message || e)); } refreshFolder(); }}><FolderOpen size={18} /> {fstate?.configured ? t('bk.change') : t('bk.choose')}</button>
+                    {fstate?.configured ? <button className="btn btn-outline" onClick={async () => { if (fstate.permission !== 'granted' && !(await allowFolder())) return; const r = await runFolderBackup({ force: true }); r.ok ? toast.ok(t('bk.savedFolder')) : toast.err(r.error || r.reason); refreshFolder(); }}><RefreshCw size={18} /> {t('bk.now')}</button> : null}
+                  </div>
+                  <p className="hint">{t('bk.folderTip')}</p>
+                </>)}
+              </div>
+              <div className="rounded-2xl p-4 border-2 line space-y-3">
+                <p className="font-bold flex items-center gap-2"><FileSpreadsheet size={18} /> {t('bk.excelTitle')}</p>
+                <p className="text-sm">{t('bk.excelIntro')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {['today', 'month', 'last', 'all'].map((w) => <button key={w} className="btn btn-outline" onClick={() => excel(w)}><FileSpreadsheet size={18} /> {t('bk.x.' + w)}</button>)}
+                </div>
+              </div>
               <p>{t('set.backupIntro')}</p>
               <div className="flex flex-wrap gap-2">
                 <button className="btn btn-primary" onClick={doBackup}><Download size={18} /> {t('set.backup')}</button>
                 <label className="btn btn-outline cursor-pointer"><Upload size={18} /> {t('set.restore')}<input type="file" accept=".json,application/json" className="hidden" onChange={(e) => e.target.files[0] && doRestore(e.target.files[0])} /></label>
               </div>
               {usage ? <p className="muted text-sm">{t('set.storage')}: {(usage.usage / 1048576).toFixed(1)} MB / {(usage.quota / 1073741824).toFixed(1)} GB</p> : null}
-              {user.role === 'admin' ? (
+              {user.role === 'admin' && import.meta.env.VITE_DEMO !== 'false' ? (
                 <div className="rounded-2xl p-4 border-2 border-maroon-500/40 space-y-2">
                   <p className="font-bold text-maroon-600">{t('set.danger')}</p>
                   <p className="text-sm">{t('set.freshHint')}</p>
                   <div className="flex flex-wrap gap-2">
                     <button className="btn btn-danger" onClick={startFresh}><Trash2 size={18} /> {t('set.fresh')}</button>
-                    <button className="btn btn-outline" onClick={reloadDemo}><RefreshCw size={18} /> {t('set.demo')}</button>
+                    {import.meta.env.VITE_DEMO !== 'false' ? <button className="btn btn-outline" onClick={reloadDemo}><RefreshCw size={18} /> {t('set.demo')}</button> : null}
                   </div>
                 </div>
               ) : null}

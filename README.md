@@ -41,7 +41,13 @@ and sets the right caching for the offline service worker.
 
 Later you can add your own domain (e.g. `pos.yourshop.lk`) under **Project → Settings → Domains**.
 
-## 3. Set up the cloud backup on Hostinger (optional but recommended)
+## 3. Run it on your own server (recommended for the shop)
+
+The shop's live system runs on an Ubuntu server (Hostinger VPS) with one command. The app and the API share one
+address, with HTTPS, MariaDB, nightly backups and no demo data. Build the package with `npm run package:server`, then follow
+**[deploy/SERVER-GUIDE.md](deploy/SERVER-GUIDE.md)**.
+
+## 3b. Shared hosting only (no VPS)
 
 The POS works fully without this. The server adds automatic backup and lets several counters share data.
 
@@ -145,13 +151,20 @@ Counter (browser)  ──►  IndexedDB on this computer  ──►  Hostinger A
 - Sync is incremental, retries automatically, and the newest version of each record wins.
 - Hostinger downtime only delays the backup; the counters keep selling.
 
-### Known limitation: stock numbers with several counters
+### Stock with several counters (stock ledger)
 
-Bills, products, prices, customers and vouchers sync exactly. **Stock quantities** are synced as
-“latest update wins”. With **one counter** stock is always exact. With **two or more counters**, if both sell the
-same size of the same item between two syncs, that item's stock figure can be off by those sales.
-Workaround today: keep auto-sync at 1–2 minutes and run **Stock → Stock count** periodically.
-The proper fix (a server-side stock ledger that adds up every counter's movements) is the recommended next step.
+Every stock change is saved as a movement (sale, return, delivery, adjustment, count).
+An item's stock is always **the sum of its movements**, recalculated after every sync, so sales made
+at different counters at the same time add up correctly. Tested: two counters selling 2 and 3 of the
+same item before syncing both end at 10 − 5 = 5.
+
+### Data safety
+
+- Upload works in verified chunks: the server must confirm every record, or the sync fails and repeats.
+- Bill, return, delivery, voucher and barcode numbers can never repeat, even on a new computer or a new address.
+- **Settings → Cloud backup → Check the server copy** compares every table on the PC with the server.
+- Automatic backup folder (PC / USB / Google Drive folder): full backup every 2 hours and at day close, 31 days kept, plus daily and monthly Excel workbooks.
+- Server: nightly SQL dump + JSON export, 35 days kept.
 
 ## 9. Customising the brand
 

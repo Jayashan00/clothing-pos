@@ -33,6 +33,6 @@ export default defineConfig(({ mode }) => {
           }),
     ],
     define: { __SINGLE__: JSON.stringify(single) },
-    build: single ? { outDir: 'dist-single', assetsInlineLimit: 100000000 } : { chunkSizeWarningLimit: 2000 },
+    build: single ? { outDir: 'dist-single', assetsInlineLimit: 100000000 } : { outDir: mode === 'server' ? 'dist-server' : 'dist', chunkSizeWarningLimit: 2000 },
   };
 });
