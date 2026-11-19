@@ -11,17 +11,20 @@
 #   --email ADDRESS      for the free SSL certificate (Let's Encrypt) expiry notices
 #   --db NAME            database name (default: redipos_<domain>)
 #   --allow-origin URL   extra website allowed to use the API (e.g. a Vercel preview)
+#   --alias NAME         another address for the SAME shop (same data), e.g. the client's own
+#                        domain: --alias pos.colombokade.lk  (can be given more than once)
 #   --no-ssl             skip HTTPS (only for testing; the POS needs HTTPS in real use)
 #   --skip-apt           do not install/upgrade system packages
 set -euo pipefail
 
-DOMAIN=""; EMAIL=""; DBNAME=""; EXTRA_ORIGIN=""; SSL=1; APT=1
+DOMAIN=""; EMAIL=""; DBNAME=""; EXTRA_ORIGIN=""; SSL=1; APT=1; ALIASES=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --domain) DOMAIN="$2"; shift 2 ;;
     --email) EMAIL="$2"; shift 2 ;;
     --db) DBNAME="$2"; shift 2 ;;
     --allow-origin) EXTRA_ORIGIN="$2"; shift 2 ;;
+    --alias) ALIASES="$ALIASES $2"; shift 2 ;;
     --no-ssl) SSL=0; shift ;;
     --skip-apt) APT=0; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -39,6 +42,8 @@ svc()  { # start/restart/reload a service with systemd, or without it (container
 [ "$(id -u)" -eq 0 ] || die "Run as root: sudo bash deploy/install.sh --domain ..."
 [ -n "$DOMAIN" ] || die "Give the website address: --domain pos.nodemor.io"
 echo "$DOMAIN" | grep -Eq '^[a-zA-Z0-9.-]+$' || die "Domain looks wrong: $DOMAIN"
+for A in $ALIASES; do echo "$A" | grep -Eq '^[a-zA-Z0-9.-]+$' || die "Alias looks wrong: $A"; done
+ALIASES="$(echo $ALIASES)"
 [ $SSL -eq 0 ] || [ -n "$EMAIL" ] || die "Give an email for the SSL certificate: --email you@example.com"
 
 PKG="$(cd "$(dirname "$0")/.." && pwd)"
@@ -76,6 +81,10 @@ if [ -n "$PUBIP" ] && [ -n "$DNSIP" ] && [ "$PUBIP" != "$DNSIP" ]; then
 elif [ -z "$DNSIP" ]; then
   warn "$DOMAIN does not resolve yet. Add an A record: ${DOMAIN%%.*} → ${PUBIP:-<server IP>}"
 else ok "DNS: $DOMAIN → $DNSIP"; fi
+for A in $ALIASES; do
+  AIP="$(getent ahostsv4 "$A" 2>/dev/null | awk 'NR==1{print $1}' || true)"
+  if [ -n "$PUBIP" ] && [ "$AIP" = "$PUBIP" ]; then ok "DNS: $A → $AIP"; else warn "$A points to '${AIP:-nothing}', not ${PUBIP:-this server}. Add an A record for it, or SSL for it will fail."; fi
+done
 
 # ---------------------------------------------------------------- packages
 if [ $APT -eq 1 ]; then
@@ -126,6 +135,7 @@ SQL
 ok "Database ready"
 
 ORIGINS="'https://$DOMAIN', 'http://$DOMAIN'"
+for A in $ALIASES; do ORIGINS="$ORIGINS, 'https://$A', 'http://$A'"; done
 [ -n "$EXTRA_ORIGIN" ] && ORIGINS="$ORIGINS, '$EXTRA_ORIGIN'"
 cat > "$CONF" <<EOF
 <?php
@@ -166,13 +176,17 @@ NGCONF="/etc/nginx/sites-available/redipos-$DOMAIN.conf"
 if [ -f "$NGCONF" ] && grep -q "ssl_certificate" "$NGCONF"; then
   ok "Keeping existing website config with its SSL certificate"
   sed -i "s#fastcgi_pass unix:/run/php/php[0-9.]*-fpm.sock;#fastcgi_pass unix:$SOCK;#" "$NGCONF"
+  if [ -n "$ALIASES" ]; then
+    sed -i -E "s#server_name $DOMAIN[^;]*;#server_name $DOMAIN $ALIASES;#g" "$NGCONF"
+    ok "Extra address(es) added: $ALIASES"
+  fi
 else
 cat > "$NGCONF" <<EOF
 # Redi POS – $DOMAIN (created by deploy/install.sh)
 server {
     listen 80;
     $LISTEN6
-    server_name $DOMAIN;
+    server_name $DOMAIN $ALIASES;
     root $PUBLIC;
     index index.html;
     client_max_body_size 64m;
@@ -222,7 +236,8 @@ fi
 SCHEME=http
 if [ $SSL -eq 1 ]; then
   say "Getting the free SSL certificate (HTTPS)"
-  if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect >/tmp/redipos-certbot.log 2>&1; then
+  CERTD="-d $DOMAIN"; for A in $ALIASES; do CERTD="$CERTD -d $A"; done
+  if certbot --nginx $CERTD --expand --cert-name "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect >/tmp/redipos-certbot.log 2>&1; then
     ok "HTTPS active"; SCHEME=https
   else
     warn "SSL could not be issued yet (see /tmp/redipos-certbot.log). Usually the DNS A record is missing or new."
@@ -266,6 +281,7 @@ chmod 600 "$INFO"
 printf '\n\033[1;32m%s\033[0m\n' "==============================================================="
 printf '\033[1;32m  Redi POS is installed.\033[0m\n\n'
 echo "  Open the POS:    $SCHEME://$DOMAIN"
+for A in $ALIASES; do echo "  Also at:         $SCHEME://$A  (same shop, same data)"; done
 echo "  Server address:  $SCHEME://$DOMAIN/api"
 echo "  Secret key:      $APIKEY"
 echo

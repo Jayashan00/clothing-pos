@@ -9,6 +9,7 @@ import { downloadExcel, monthRange, monthKey } from '../lib/excel';
 import { useSearchParams } from 'react-router-dom';
 import { FolderOpen, FileSpreadsheet, Scale, CloudUpload } from 'lucide-react';
 import { startOfDay, endOfDay } from '../lib/util';
+import { costCode, decodeCost } from '../lib/costcode';
 import { exportAll, importAll, wipeBusinessData } from '../lib/backup';
 import { db } from '../db/db';
 import { seedDemo, createOwnerOnly } from '../db/seed';
@@ -159,6 +160,7 @@ export default function Settings() {
               <Field label={t('set.barcodeFormat')} hint={t('set.barcodeFormatHint')}><select className="input" value={s.labels.format} onChange={(e) => s.setSection('labels', { format: e.target.value })}><option value="EAN13">EAN-13 ({t('set.recommended')})</option><option value="CODE128">Code 128</option></select></Field>
               <Field label={t('set.prefix')} hint={t('set.prefixHint')}><input className="input" value={s.labels.prefix} onChange={(e) => s.setSection('labels', { prefix: e.target.value })} /></Field>
               <p className="muted">{t('set.labelsMore')}</p>
+              <CostCodeEditor />
             </div>
           ) : null}
 
@@ -315,5 +317,43 @@ export default function Settings() {
         </div>
       </div>
     </Page>
+  );
+}
+
+function CostCodeEditor() {
+  const t = useT();
+  const labels = useSettings((x) => x.labels);
+  const setSection = useSettings((x) => x.setSection);
+  const cc = labels.costCode || { digits: 'GSAREHLIYN', zz: 'GE' };
+  const [test, setTest] = useState('2500');
+  const digits = cc.digits.padEnd(10, '?').split('');
+  const setDigit = (i, v) => { const d = [...digits]; d[i] = (v || '').toUpperCase().slice(-1) || '?'; setSection('labels', { costCode: { ...cc, digits: d.join('') } }); };
+  const dup = new Set(digits).size !== 10;
+  // ambiguous if the "00" code can also be read as digit letters, e.g. GE = G(0)+E(4)
+  const zzAmbiguous = cc.zz && cc.zz.toUpperCase().split('').every((ch) => digits.includes(ch));
+  const examples = [100, 104, 1200, 1250, 2500, 10000].map((n) => [n, costCode(n, cc)]);
+  return (
+    <div className="rounded-2xl p-4 border-2 line space-y-3 mt-4">
+      <p className="font-display text-lg font-bold">{t('cc.title')}</p>
+      <p className="text-sm">{t('cc.intro')}</p>
+      <Toggle label={t('labels.showCostCode')} checked={labels.showCostCode} onChange={(v) => setSection('labels', { showCostCode: v })} />
+      <div className="grid grid-cols-5 sm:grid-cols-11 gap-2">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => (
+          <label key={d} className="text-center"><span className="block text-xs font-bold muted">{d}</span>
+            <input className="input !min-h-[2.5rem] !px-1 text-center font-bold uppercase" value={digits[d]} maxLength={2} onChange={(e) => setDigit(d, e.target.value)} /></label>
+        ))}
+        <label className="text-center"><span className="block text-xs font-bold muted">00</span>
+          <input className="input !min-h-[2.5rem] !px-1 text-center font-bold uppercase" value={cc.zz} maxLength={3} onChange={(e) => setSection('labels', { costCode: { ...cc, zz: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') } })} /></label>
+      </div>
+      {dup ? <p className="text-maroon-600 font-bold text-sm">{t('cc.dup')}</p> : null}
+      {zzAmbiguous ? <p className="rounded-xl p-3 text-sm bg-saffron-50 text-saffron-900 dark:bg-saffron-900/30 dark:text-saffron-100">⚠️ {t('cc.ambiguous', { zz: cc.zz, a: costCode(100, cc), b: costCode(104, cc) })}</p> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-bold">{t('cc.try')}</span>
+        <input className="input !w-32" inputMode="numeric" value={test} onChange={(e) => setTest(e.target.value.replace(/\D/g, ''))} />
+        <span className="font-display text-2xl font-bold tracking-wider">{costCode(test, cc) || '—'}</span>
+        {test && decodeCost(costCode(test, cc), cc) !== Number(test) ? <span className="badge badge-gold">{t('cc.readsAs', { n: decodeCost(costCode(test, cc), cc) })}</span> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">{examples.map(([n, c]) => <span key={n} className="badge badge-blue text-sm">{n.toLocaleString()} → {c}</span>)}</div>
+    </div>
   );
 }

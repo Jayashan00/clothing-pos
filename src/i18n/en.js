@@ -113,7 +113,7 @@ const en = {
   'labels.copies': 'Copies', 'labels.preview': 'Preview', 'labels.size': 'Label size', 'labels.nameLang': 'Product name on label',
   'labels.barWidth': 'Bar thickness', 'labels.barWidthHint': 'Use a thicker bar if your scanner struggles to read small tags.', 'labels.standard': 'standard', 'labels.bold': 'easiest to scan',
   'labels.showShop': 'Show shop name', 'labels.showPrice': 'Show price', 'labels.showVariant': 'Show size and colour', 'labels.print': 'Print {n} labels',
-  'labels.printerTip': 'In the print window choose your label printer, set Margins to None and Scale to 100%. The paper size is set for you.',
+  "labels.printerTip": "Zebra ZD230: in the print window choose “ZDesigner ZD230-203dpi ZPL”, Margins None, Scale 100%. The paper size must match the size shown under the preview (set it once in the printer preferences, see Settings → Printer setup).",
 
   // inventory
   'inv.units': 'Items in stock', 'inv.costValue': 'Stock value (cost)', 'inv.retailValue': 'Stock value (selling)', 'inv.levels': 'Stock levels', 'inv.stockTake': 'Stock count',
@@ -216,8 +216,8 @@ const en = {
   'set.pg.chrome.steps': ['Use Google Chrome or Microsoft Edge.', 'Open More settings. Set Margins to None and Scale to Default (100%).', 'Untick Headers and footers.', 'Tick Background graphics.'],
   'set.pg.thermal.title': 'Thermal receipt printers (58 mm or 80 mm, e.g. Xprinter, Epson TM)',
   'set.pg.thermal.steps': ['Install the printer’s Windows driver from the CD or the maker’s website.', 'In Windows printer preferences set the paper to 80 × 297 mm (or 58 mm) and print density to the darkest setting.', 'Choose the same width under Settings → Receipt.', 'Print the test page. Sinhala letters and both barcodes should be crisp.'],
-  'set.pg.label.title': 'Barcode label printers (e.g. Xprinter XP-365B, TSC, Zebra)',
-  'set.pg.label.steps': ['In the printer driver create a paper size that matches your label roll (for example 38 × 25 mm).', 'Set the gap or black-mark sensor and run the label calibration once.', 'Choose the same size on the Barcode labels page and print.'],
+  "set.pg.label.title": "Barcode label printer (Zebra ZD230, 3 labels across)",
+  "set.pg.label.steps": ["Windows → Printers → ZDesigner ZD230-203dpi ZPL → Printing preferences → Page Setup → New: width 97 mm, height 20 mm (the page size shown on the Barcode labels page). Save and select it.", "Options tab: Darkness about 20 (not 30) and Speed 3 ips (not 6). Slower and lighter makes the barcode bars sharper and easier to scan.", "Make sure the ribbon is loaded (the printer is set to thermal transfer).", "Hold the feed button until it flashes twice to calibrate the labels.", "On the Barcode labels page press “Print alignment test”. Adjust Left / Gap until every box sits on its sticker."],
   'set.pg.silent.title': 'Print without the print window (optional)',
   'set.pg.silent.steps': ['Make a Chrome shortcut on the desktop.', 'Add --kiosk-printing at the end of the shortcut’s Target box.', 'Open Redi POS from that shortcut. Receipts now go straight to the default printer.'],
   'set.pg.scanner.title': 'Barcode scanners',
@@ -433,6 +433,22 @@ const en = {
   "srv.allSame": "Everything matches. The server has a full copy.",
   "srv.notSame": "Not matching yet. Press Back up now, then compare again.",
   'srv.pendingBlock': "{n} changes on this computer are not on the server yet. Press “Back up now” first, then try again.",
+  "labels.pageSize": "printer page",
+  "labels.alignTitle": "Line up with the labels",
+  "labels.gap": "Gap (mm)",
+  "labels.left": "Left (mm)",
+  "labels.top": "Top (mm)",
+  "labels.alignPrint": "Print alignment test",
+  "labels.alignHint": "Prints boxes where the labels should be. If a box is off the sticker, change Left (move right = bigger) or Gap, then test again.",
+  "labels.showCostCode": "Print secret cost code",
+  "labels.costCodeHint": "Example: cost {cost} prints as {ex}. Change the letters in Settings → Barcodes.",
+  "cc.title": "Secret cost code",
+  "cc.intro": "Each digit of the cost price is written as a letter, so staff can see the cost on the tag but customers cannot. Set the letter for each digit, and a code for “00”.",
+  "cc.dup": "Two digits use the same letter. Every digit needs its own letter.",
+  "cc.code": "Cost code",
+  "cc.ambiguous": "The “00” code {zz} is made of digit letters, so some codes have two meanings: 100 is {a}, but 104 is {b} too. Staff can misread these. To avoid it, use a letter for “00” that is not used for any digit (for example X).",
+  "cc.try": "Try a cost:",
+  "cc.readsAs": "can also be read as {n}",
 };
 
 export default en;

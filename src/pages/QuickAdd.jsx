@@ -12,6 +12,7 @@ import { toast, confirmDialog, ProductIcon } from '../components/ui';
 import { PageHeader } from '../components/Help';
 import { Page } from '../components/Layout';
 import { recommendIcons } from '../icons/clothing';
+import { costCode } from '../lib/costcode';
 
 const DRAFT_KEY = 'redipos-quickadd-draft';
 const blank = (prev) => ({
@@ -170,7 +171,7 @@ export default function QuickAdd() {
                 <td><input className={`${inp} w-20`} value={r.color} onChange={(e) => set(i, 'color', e.target.value)} placeholder="Red" /></td>
                 <td><input className={`${inp} w-20 font-bold`} inputMode="decimal" value={r.price} onChange={(e) => set(i, 'price', e.target.value)} /></td>
                 <td><input className={`${inp} w-16 font-bold`} inputMode="decimal" value={r.qty} onChange={(e) => set(i, 'qty', e.target.value)} onKeyDown={(e) => onKey(e, i, true)} /></td>
-                <td><input className={`${inp} w-20`} inputMode="decimal" value={r.cost} onChange={(e) => set(i, 'cost', e.target.value)} /></td>
+                <td><input className={`${inp} w-20`} inputMode="decimal" value={r.cost} onChange={(e) => set(i, 'cost', e.target.value)} />{r.cost ? <div className="text-[11px] font-bold text-saffron-700 dark:text-saffron-300 text-center tracking-wider">{costCode(r.cost, settings.labels.costCode)}</div> : null}</td>
                 <td><select className={`${inp} w-[5.5rem]`} value={r.unit} onChange={(e) => set(i, 'unit', e.target.value)}>{['pcs', 'm', 'yd'].map((u) => <option key={u} value={u}>{t('unit.' + u)}</option>)}</select></td>
                 <td><input className={`${inp} w-[8.5rem] font-mono`} data-scan-target="1" value={r.barcode} onChange={(e) => set(i, 'barcode', e.target.value)} placeholder={t('qa.auto')} /></td>
                 <td className="whitespace-nowrap">

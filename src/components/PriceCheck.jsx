@@ -9,6 +9,7 @@ import { beep } from '../lib/scanner';
 import { Modal, ProductIcon } from './ui';
 import { printLabels } from '../print/templates';
 import { markLabelled } from '../pages/Labels';
+import { costCode } from '../lib/costcode';
 
 export const usePriceCheck = create((set) => ({ open: false, set }));
 
@@ -70,14 +71,15 @@ export default function PriceCheck() {
           ) : null}
           <p className="font-bold mt-4 mb-2">{t('pc.allSizes')}</p>
           <div className="overflow-x-auto"><table className="table text-sm">
-            <thead><tr><th>{t('prod.size')}</th><th>{t('prod.color')}</th><th>{t('prod.barcode')}</th><th className="text-right">{t('prod.price')}</th><th className="text-right">{t('prod.stock')}</th><th /></tr></thead>
+            <thead><tr><th>{t('prod.size')}</th><th>{t('prod.color')}</th><th>{t('prod.barcode')}</th><th className="text-right">{t('prod.price')}</th>{settings.labels.showCostCode ? <th>{t('cc.code')}</th> : null}<th className="text-right">{t('prod.stock')}</th><th /></tr></thead>
             <tbody>{hit.all.map((v) => (
               <tr key={v.id} className={hit.v?.id === v.id ? 'bg-saffron-50 dark:bg-saffron-900/30' : ''}>
                 <td className="font-bold">{v.size || '—'}</td><td>{v.color}</td><td className="font-mono">{v.barcode}</td>
                 <td className="text-right font-bold">{money(v.price, settings.currency)}</td>
+                {settings.labels.showCostCode ? <td className="font-bold tracking-wider">{costCode(v.cost, settings.labels.costCode)}</td> : null}
                 <td className="text-right"><span className={`badge ${v.stock <= 0 ? 'badge-red' : v.stock <= v.reorderLevel ? 'badge-gold' : 'badge-green'}`}>{v.stock}</span></td>
                 <td className="text-right"><button className="btn btn-ghost btn-sm" onClick={() => {
-                  printLabels([{ nameEn: hit.p.nameEn, nameSi: hit.p.nameSi, size: v.size, color: v.color, barcode: v.barcode, price: v.price, copies: 1 }], settings);
+                  printLabels([{ nameEn: hit.p.nameEn, nameSi: hit.p.nameSi, size: v.size, color: v.color, barcode: v.barcode, price: v.price, cost: v.cost, copies: 1 }], settings);
                   markLabelled([v.id]);
                 }}><Printer size={15} /> {t('pc.printTag')}</button></td>
               </tr>

@@ -13,6 +13,7 @@ import { PageHeader } from '../components/Help';
 import { Page } from '../components/Layout';
 import IconPicker from '../components/IconPicker';
 import { recommendIcons, ClothingIcon } from '../icons/clothing';
+import { costCode } from '../lib/costcode';
 
 const SIZE_PRESETS = {
   adult: ['S', 'M', 'L', 'XL', 'XXL'],
@@ -190,7 +191,7 @@ export function ProductForm({ open, product, onClose, onSaved }) {
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-          {['cost', 'price', 'mrp', 'stock'].map((k) => <Field key={k} label={t('prod.' + k)}><input className="input" inputMode="decimal" value={bulk[k]} onChange={(e) => setBulk({ ...bulk, [k]: e.target.value })} /></Field>)}
+          {['cost', 'price', 'mrp', 'stock'].map((k) => <Field key={k} label={t('prod.' + k)} hint={k === 'cost' && Number(bulk.cost) > 0 ? `${t('cc.code')}: ${costCode(bulk.cost, settings.labels.costCode)}` : undefined}><input className="input" inputMode="decimal" value={bulk[k]} onChange={(e) => setBulk({ ...bulk, [k]: e.target.value })} /></Field>)}
         </div>
         <div className="flex flex-wrap gap-2 mt-3">
           <button className="btn btn-primary" onClick={generate}><Wand2 size={18} /> {t('prod.generate')}</button>
@@ -206,7 +207,7 @@ export function ProductForm({ open, product, onClose, onSaved }) {
                   <td><input className="input !min-h-[2.25rem] w-20" value={v.size} onChange={(e) => setVar(i, 'size', e.target.value)} /></td>
                   <td><input className="input !min-h-[2.25rem] w-24" value={v.color} onChange={(e) => setVar(i, 'color', e.target.value)} /></td>
                   <td><input className="input !min-h-[2.25rem] w-40 font-mono" data-scan-target="1" value={v.barcode} onChange={(e) => setVar(i, 'barcode', e.target.value)} title={t('prod.barcodeHint')} /></td>
-                  {['cost', 'price', 'mrp'].map((k) => <td key={k}><input className="input !min-h-[2.25rem] w-24" inputMode="decimal" value={v[k]} onChange={(e) => setVar(i, k, e.target.value)} /></td>)}
+                  {['cost', 'price', 'mrp'].map((k) => <td key={k}><input className="input !min-h-[2.25rem] w-24" inputMode="decimal" value={v[k]} onChange={(e) => setVar(i, k, e.target.value)} />{k === 'cost' && Number(v.cost) > 0 ? <div className="text-[11px] font-bold text-saffron-700 dark:text-saffron-300 text-center tracking-wider">{costCode(v.cost, settings.labels.costCode)}</div> : null}</td>)}
                   <td><input className="input !min-h-[2.25rem] w-20" inputMode="decimal" value={v.stock} disabled={v._orig} title={v._orig ? t('prod.stockViaInventory') : ''} onChange={(e) => setVar(i, 'stock', e.target.value)} /></td>
                   <td><input className="input !min-h-[2.25rem] w-16" inputMode="numeric" value={v.reorderLevel} onChange={(e) => setVar(i, 'reorderLevel', e.target.value)} /></td>
                   <td><button className="icon-btn" onClick={() => setVars(vars.filter((_, j) => j !== i))} aria-label={t('common.remove')}><Trash2 size={18} /></button></td>

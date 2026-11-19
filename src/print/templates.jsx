@@ -1,5 +1,6 @@
 import BarcodeSvg from '../components/BarcodeSvg';
-import { PAPER, LABEL_TEMPLATES, printReact } from '../lib/print';
+import { PAPER, LABEL_TEMPLATES, printReact, rowWidth } from '../lib/print';
+import { costCode } from '../lib/costcode';
 import { num, fmtDateTime, qtyFmt } from '../lib/util';
 import { translate } from '../i18n';
 
@@ -101,14 +102,41 @@ const priceTxt = (n, cur) => `${cur} ${Number(n) % 1 === 0 ? Number(n).toLocaleS
 export function Label({ item, cfg, tpl, shop, cur }) {
   const { w, h } = tpl;
   const tag = h > w; // portrait hang tag
-  const pad = Math.max(1.2, Math.min(w, h) * 0.06);
-  const fs = Math.max(6.2, Math.min(9, h * 0.3)); // pt
   const name = cfg.nameLang === 'si' && item.nameSi ? item.nameSi : item.nameEn;
   const variant = [item.size, item.color].filter(Boolean).join(' / ');
+  const code = cfg.showCostCode ? costCode(item.cost, cfg.costCode) : '';
+  const one = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+  const box = { width: `${w}mm`, height: `${h}mm`, boxSizing: 'border-box', overflow: 'hidden', fontWeight: 700, background: '#fff' };
+
+  // Small labels (the shop's 1.2 × 0.8 in): every millimetre is planned.
+  //  shop name · product · size/colour + PRICE · barcode · number + secret cost code
+  if (!tag && h <= 22) {
+    return (
+      <div className="p-doc" style={{ ...box, padding: '0.9mm 1mm 0.6mm', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+        {cfg.showShop ? <div style={{ ...one, fontSize: '5pt', fontWeight: 800, textAlign: 'center', lineHeight: 1.05 }}>{shop.nameEn}</div> : null}
+        <div style={{ ...one, fontSize: '6.5pt', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>{name}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1mm', lineHeight: 1.05 }}>
+          <span style={{ ...one, fontSize: '6pt', minWidth: 0 }}>{cfg.showVariant ? variant : ''}</span>
+          {cfg.showPrice ? <span style={{ fontSize: '8.5pt', fontWeight: 800, whiteSpace: 'nowrap' }}>{priceTxt(item.price, cur)}</span> : null}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.3mm' }}>
+          <BarcodeSvg value={item.barcode} format={cfg.format} moduleMm={cfg.moduleMm || 0.25} heightMm={cfg.showShop ? 7.2 : 8.2} maxWidthMm={w - 2} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: code ? 'space-between' : 'center', alignItems: 'baseline', lineHeight: 1.05, marginTop: '0.2mm' }}>
+          <span style={{ fontSize: '5pt', letterSpacing: '0.2px' }}>{item.barcode}</span>
+          {code ? <span style={{ fontSize: '6pt', fontWeight: 800, letterSpacing: '0.4px' }}>{code}</span> : null}
+        </div>
+      </div>
+    );
+  }
+
+  const pad = Math.max(1.2, Math.min(w, h) * 0.06);
+  const fs = Math.max(6.2, Math.min(9, h * 0.3)); // pt
   const bcH = tag ? 13 : Math.max(6, h * 0.36);
   return (
-    <div className="p-doc" style={{ width: `${w}mm`, height: `${h}mm`, padding: `${pad}mm`, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: tag ? 'space-between' : 'center', textAlign: 'center', fontWeight: 700 }}>
-      {cfg.showShop ? <div style={{ fontSize: `${fs * 0.85}pt`, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', lineHeight: 1.1 }}>{shop.nameEn}</div> : null}
+    <div className="p-doc" style={{ ...box, padding: `${pad}mm`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: tag ? 'space-between' : 'center', textAlign: 'center' }}>
+      {code ? <div style={{ position: 'absolute', top: `${pad * 0.6}mm`, right: `${pad}mm`, fontSize: `${fs * 0.8}pt`, fontWeight: 800 }}>{code}</div> : null}
+      {cfg.showShop ? <div style={{ ...one, fontSize: `${fs * 0.85}pt`, fontWeight: 800, width: code ? '80%' : '100%', lineHeight: 1.1 }}>{shop.nameEn}</div> : null}
       {tag ? <div style={{ borderTop: '1px solid #000', width: '60%', margin: '1mm 0' }} /> : null}
       <div style={{ fontSize: `${fs}pt`, fontWeight: 800, width: '100%', lineHeight: 1.15, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: tag ? 3 : 1, WebkitBoxOrient: 'vertical' }}>{name}</div>
       {cfg.showVariant && variant ? <div style={{ fontSize: `${fs * 0.95}pt`, fontWeight: 700, lineHeight: 1.1 }}>{variant}</div> : null}
@@ -124,10 +152,29 @@ export function Label({ item, cfg, tpl, shop, cur }) {
   );
 }
 
+// One row of a multi-across roll = one printed page.
+export function LabelRow({ items, cfg, tpl, shop, cur, outline }) {
+  const gap = Number(cfg.gapMm) || 0; const left = Number(cfg.leftMm) || 0; const top = Number(cfg.topMm) || 0;
+  return (
+    <div style={{ position: 'relative', width: `${rowWidth(tpl, cfg)}mm`, height: `${tpl.h}mm`, overflow: 'hidden', background: '#fff' }}>
+      {Array.from({ length: tpl.cols }).map((_, c) => (
+        <div key={c} style={{ position: 'absolute', top: `${top}mm`, left: `${left + c * (tpl.w + gap)}mm`, width: `${tpl.w}mm`, height: `${tpl.h}mm`, outline: outline ? '0.3mm dashed #000' : 'none', outlineOffset: '-0.3mm' }}>
+          {items[c] ? <Label item={items[c]} cfg={cfg} tpl={tpl} shop={shop} cur={cur} /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LabelPrintout({ items, settings, templateId }) {
   const cfg = settings.labels;
   const tpl = LABEL_TEMPLATES[templateId || cfg.template] || LABEL_TEMPLATES['38x25'];
   const flat = items.flatMap((it) => Array.from({ length: Math.max(0, it.copies || 0) }, () => it));
+  if (tpl.kind === 'multi') {
+    const rows = [];
+    for (let i = 0; i < flat.length; i += tpl.cols) rows.push(flat.slice(i, i + tpl.cols));
+    return <div>{rows.map((r, i) => <div key={i} className="p-page-break"><LabelRow items={r} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>)}</div>;
+  }
   if (tpl.kind === 'roll') {
     return <div>{flat.map((it, i) => <div key={i} className="p-page-break"><Label item={it} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>)}</div>;
   }
@@ -146,10 +193,40 @@ export function LabelPrintout({ items, settings, templateId }) {
   );
 }
 
+export const labelPageCss = (tpl, cfg) => (tpl.kind === 'multi'
+  ? `size: ${rowWidth(tpl, cfg)}mm ${tpl.h}mm; margin: 0`
+  : tpl.kind === 'roll' ? `size: ${tpl.w}mm ${tpl.h}mm; margin: 0` : 'size: A4 portrait; margin: 0');
+
 export function printLabels(items, settings, templateId) {
   const tpl = LABEL_TEMPLATES[templateId || settings.labels.template] || LABEL_TEMPLATES['38x25'];
-  const page = tpl.kind === 'roll' ? `size: ${tpl.w}mm ${tpl.h}mm; margin: 0` : 'size: A4 portrait; margin: 0';
-  return printReact(<LabelPrintout items={items} settings={settings} templateId={templateId} />, { page });
+  return printReact(<LabelPrintout items={items} settings={settings} templateId={templateId} />, { page: labelPageCss(tpl, settings.labels) });
+}
+
+// Alignment test: dashed frames where the labels should be, numbered, with a cross in the middle.
+export function printLabelAlignment(settings) {
+  const cfg = settings.labels;
+  const tpl = LABEL_TEMPLATES[cfg.template] || LABEL_TEMPLATES['z3-30x20'];
+  const sample = { nameEn: 'ALIGNMENT TEST', size: 'M', color: 'Black', barcode: '2000000000015', price: 1200, cost: 650 };
+  const marks = (n) => (
+    <div className="p-doc" style={{ width: `${tpl.w}mm`, height: `${tpl.h}mm`, position: 'relative', boxSizing: 'border-box', border: '0.3mm solid #000' }}>
+      <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '0.25mm solid #000' }} />
+      <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '0.25mm solid #000' }} />
+      <div style={{ position: 'absolute', top: '1mm', left: '1.2mm', fontSize: '9pt', fontWeight: 800 }}>{n}</div>
+      <div style={{ position: 'absolute', bottom: '0.8mm', right: '1.2mm', fontSize: '5pt' }}>{tpl.w}×{tpl.h}mm</div>
+    </div>
+  );
+  if (tpl.kind === 'multi') {
+    const gap = Number(cfg.gapMm) || 0; const left = Number(cfg.leftMm) || 0; const top = Number(cfg.topMm) || 0;
+    return printReact(
+      <div>
+        <div className="p-page-break" style={{ position: 'relative', width: `${rowWidth(tpl, cfg)}mm`, height: `${tpl.h}mm`, overflow: 'hidden' }}>
+          {Array.from({ length: tpl.cols }).map((_, c) => <div key={c} style={{ position: 'absolute', top: `${top}mm`, left: `${left + c * (tpl.w + gap)}mm` }}>{marks(c + 1)}</div>)}
+        </div>
+        <div className="p-page-break"><LabelRow items={Array.from({ length: tpl.cols }, () => sample)} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>
+      </div>,
+      { page: labelPageCss(tpl, cfg) });
+  }
+  return printReact(<div><div className="p-page-break">{marks(1)}</div><div className="p-page-break"><Label item={sample} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div></div>, { page: labelPageCss(tpl, cfg) });
 }
 
 /* ---------------- Voucher / credit note ---------------- */

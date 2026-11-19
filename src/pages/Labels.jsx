@@ -21,7 +21,9 @@ export async function markLabelled(variantIds) {
 import { toast, SearchBox, ProductIcon, Empty, Toggle, Field } from '../components/ui';
 import { PageHeader } from '../components/Help';
 import { Page } from '../components/Layout';
-import { Label, printLabels } from '../print/templates';
+import { Label, LabelRow, printLabels, printLabelAlignment } from '../print/templates';
+import { rowWidth } from '../lib/print';
+import { costCode } from '../lib/costcode';
 
 export default function Labels() {
   const t = useT();
@@ -37,7 +39,7 @@ export default function Labels() {
 
   const pMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p])), [products]);
   const cMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
-  const item = (v, copies = 1) => { const p = pMap[v.productId]; return { key: v.id, variantId: v.id, nameEn: p?.nameEn || '', nameSi: p?.nameSi || '', icon: p?.icon, categoryId: p?.categoryId, size: v.size, color: v.color, barcode: v.barcode, price: v.price, copies }; };
+  const item = (v, copies = 1) => { const p = pMap[v.productId]; return { key: v.id, variantId: v.id, nameEn: p?.nameEn || '', nameSi: p?.nameSi || '', icon: p?.icon, categoryId: p?.categoryId, size: v.size, color: v.color, barcode: v.barcode, price: v.price, cost: v.cost, copies }; };
 
   const add = (v, copies = 1) => setQueue((qq) => {
     const i = qq.findIndex((x) => x.variantId === v.id);
@@ -76,7 +78,10 @@ export default function Labels() {
   const doPrint = async () => { await printLabels(queue, settings); markLabelled(queue.filter((x) => x.copies > 0).map((x) => x.variantId)); };
   const tpl = LABEL_TEMPLATES[cfg.template] || LABEL_TEMPLATES['38x25'];
   const total = queue.reduce((s, x) => s + (Number(x.copies) || 0), 0);
-  const scale = Math.min(3, 240 / (tpl.w * 3.78));
+  const multi = tpl.kind === 'multi';
+  const previewW = multi ? rowWidth(tpl, cfg) : tpl.w;
+  const scale = Math.min(3, (multi ? 330 : 240) / (previewW * 3.78));
+  const sample = queue[0] || { nameEn: 'Linen kurta top', nameSi: 'ලිනන් කුර්තා ටොප්', size: 'M', color: 'Beige', barcode: '2000000000015', price: 2890, cost: 1500 };
 
   return (
     <Page>
@@ -115,7 +120,7 @@ export default function Labels() {
                 <thead><tr><th>{t('prod.product')}</th><th>{t('prod.barcode')}</th><th className="text-right">{t('prod.price')}</th><th>{t('labels.copies')}</th><th /></tr></thead>
                 <tbody>{queue.map((x, i) => (
                   <tr key={x.key}>
-                    <td><div className="flex items-center gap-2"><ProductIcon icon={x.icon} color={cMap[x.categoryId]?.color} size={34} /><div><b>{t.name(x)}</b><p className="text-xs muted">{[x.size, x.color].filter(Boolean).join(' · ')}</p></div></div></td>
+                    <td><div className="flex items-center gap-2"><ProductIcon icon={x.icon} color={cMap[x.categoryId]?.color} size={34} /><div><b>{t.name(x)}</b><p className="text-xs muted">{[x.size, x.color].filter(Boolean).join(' · ')}{cfg.showCostCode && x.cost ? ` · ${costCode(x.cost, cfg.costCode)}` : ''}</p></div></div></td>
                     <td className="font-mono text-sm">{x.barcode}</td>
                     <td className="text-right">{num(x.price)}</td>
                     <td><input className="input !min-h-[2.25rem] w-20" inputMode="numeric" value={x.copies} onChange={(e) => setQueue(queue.map((y, j) => (j === i ? { ...y, copies: Number(e.target.value.replace(/\D/g, '')) || 0 } : y)))} /></td>
@@ -133,11 +138,13 @@ export default function Labels() {
             <div className="rounded-2xl p-4 grid place-items-center overflow-hidden" style={{ background: 'repeating-linear-gradient(45deg, var(--surface-2) 0 10px, var(--surface) 10px 20px)', minHeight: 160 }}>
               <div style={{ transform: `scale(${scale})`, transformOrigin: 'center', margin: `${(tpl.h * 3.78 * (scale - 1)) / 2}px 0` }}>
                 <div className="bg-white shadow-lift" style={{ outline: '1px solid #ccc' }}>
-                  <Label item={queue[0] || { nameEn: 'Handloom cotton saree', nameSi: 'කපු සාරිය', size: 'Free', color: 'Maroon', barcode: '2000000000015', price: 5450 }} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} />
+                  {multi
+                    ? <LabelRow items={queue.length ? queue.flatMap((x) => Array.from({ length: Math.max(0, x.copies) }, () => x)).slice(0, tpl.cols) : Array.from({ length: tpl.cols }, () => sample)} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} outline />
+                    : <Label item={sample} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} />}
                 </div>
               </div>
             </div>
-            <p className="text-xs muted mt-2 text-center">{tpl.name}</p>
+            <p className="text-xs muted mt-2 text-center">{tpl.name}{multi ? ` · ${t('labels.pageSize')}: ${previewW} × ${tpl.h} mm` : ''}</p>
           </div>
           <div className="card p-4 space-y-2">
             <Field label={t('labels.size')}>
@@ -155,6 +162,21 @@ export default function Labels() {
                 <option value={0.25}>0.25 mm ({t('labels.standard')})</option><option value={0.33}>0.33 mm</option><option value={0.375}>0.375 mm ({t('labels.bold')})</option>
               </select>
             </Field>
+            {multi ? (
+              <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                <p className="text-sm font-bold">{t('labels.alignTitle')}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[['gapMm', 'labels.gap'], ['leftMm', 'labels.left'], ['topMm', 'labels.top']].map(([k, l]) => (
+                    <label key={k} className="block"><span className="text-xs font-bold">{t(l)}</span>
+                      <input className="input !min-h-[2.25rem] !px-2" inputMode="decimal" value={cfg[k]} onChange={(e) => setCfg({ [k]: e.target.value.replace(/[^\d.-]/g, '') })} /></label>
+                  ))}
+                </div>
+                <button className="btn btn-outline btn-sm w-full" onClick={() => printLabelAlignment(settings)}><Printer size={16} /> {t('labels.alignPrint')}</button>
+                <p className="hint">{t('labels.alignHint')}</p>
+              </div>
+            ) : null}
+            <Toggle label={t('labels.showCostCode')} checked={cfg.showCostCode} onChange={(v) => setCfg({ showCostCode: v })} />
+            {cfg.showCostCode ? <p className="hint -mt-1">{t('labels.costCodeHint', { ex: costCode(sample.cost || 1500, cfg.costCode) || '—', cost: sample.cost || 1500 })}</p> : null}
             <Toggle label={t('labels.showShop')} checked={cfg.showShop} onChange={(v) => setCfg({ showShop: v })} />
             <Toggle label={t('labels.showPrice')} checked={cfg.showPrice} onChange={(v) => setCfg({ showPrice: v })} />
             <Toggle label={t('labels.showVariant')} checked={cfg.showVariant} onChange={(v) => setCfg({ showVariant: v })} />

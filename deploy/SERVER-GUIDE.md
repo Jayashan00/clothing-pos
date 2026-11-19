@@ -86,7 +86,21 @@ bash deploy/install.sh --domain pos.nodemor.io --email you@example.com
 
 The database, the secret key and every counter's data are kept. Counters pick up the new version on next open.
 
-## 8. Moving to the client's own server / domain later
+## 8a. Adding the client's own domain (same server, same data)
+
+1. Client's DNS: add an **A record** for e.g. `pos.colombokade.lk` → `189.31.33.36`.
+2. On the server, run the install command again with `--alias`:
+
+```bash
+cd /root/redipos-server
+bash deploy/install.sh --domain pos.nodemor.io --email you@example.com --alias pos.colombokade.lk
+```
+
+Both addresses now open **the same shop and the same data**, each with HTTPS.
+3. On every counter: first at the OLD address press **Settings → Cloud backup → Back up now**, then **Compare now** → “Everything matches”.
+   Then open the NEW address → **Connect to the shop's server** → secret key. (Browsers keep data per address, so the new address downloads from the server.)
+
+## 8b. Moving to the client's own server / domain later
 
 1. On the new server: run this same package's `install.sh` with the new domain, and allow the old address to upload to it:
    `bash deploy/install.sh --domain pos.clientshop.lk --email you@example.com --allow-origin https://pos.nodemor.io`
@@ -97,7 +111,14 @@ The database, the secret key and every counter's data are kept. Counters pick up
 3. Open the **new address** on each counter → **Connect to the shop's server**. (Browsers keep data per website address, so a new address always starts by downloading from the server.)
 4. Keep the old server running for a few days until every counter shows “Everything matches” at the new address.
 
-## 9. Problems
+## 9. Zebra ZD230 label printer (3 labels across, 1.2 × 0.8 in)
+
+1. Windows → Printers → **ZDesigner ZD230-203dpi ZPL** → Printing preferences → Page Setup → **New**: width **97 mm**, height **20 mm**. Select it.
+2. Options: **Darkness ≈ 20**, **Speed 3 ips** (the printer was at 30 / 6 ips — too dark and fast for sharp barcodes).
+3. Ribbon loaded (thermal transfer). Calibrate: hold FEED until it flashes twice.
+4. POS → Barcode labels → **Print alignment test**. Adjust **Left / Gap / Top** until every box sits on its sticker.
+
+## 10. Problems
 
 | Problem | Fix |
 |---|---|
