@@ -29,6 +29,13 @@ function alignBarcodesToDots(host) {
       const shiftUnits = (shiftDots / DOTS_PER_MM) / unitMm;
       svg.setAttribute('viewBox', `${(-shiftUnits).toFixed(5)} ${vb[1]} ${vb[2]} ${vb[3]}`);
     });
+    // dot-exact pictures (the logo): nudge so each picture pixel sits on exactly one printer dot
+    const pageTop = pg.getBoundingClientRect().top;
+    pg.querySelectorAll('img.dot-img').forEach((img) => {
+      const r = img.getBoundingClientRect();
+      const toShift = (px) => { const d = (Math.round(px) * 25.4 / 96) * DOTS_PER_MM; const f = d - Math.floor(d); return (f < 1e-6 || f > 1 - 1e-6 ? 0 : 1 - f) / DOTS_PER_MM; };
+      img.style.transform = `translate(${toShift(r.left - pageLeft).toFixed(4)}mm, ${toShift(r.top - pageTop).toFixed(4)}mm)`;
+    });
   });
 }
 

@@ -23,7 +23,13 @@ export function Receipt({ sale, settings, reprint }) {
   return (
     <div className="p-doc" data-dot-page="1" style={{ width: wide ? '100%' : `${paper.width}mm`, padding: wide ? 0 : `3mm ${(paper.width - paper.content) / 2}mm 6mm`, fontSize: base, boxSizing: 'border-box' }}>
       <div style={{ textAlign: 'center' }}>
-        {r.showLogo && shop.logo ? <img src={shop.logo} alt="" style={{ maxWidth: '34mm', maxHeight: '18mm', margin: '0 auto 1.5mm', display: 'block', filter: 'grayscale(1) contrast(2)' }} /> : null}
+        {/* no CSS filters here: a filter makes Chrome redraw the logo as a small blurry picture */}
+        {r.showLogo && shop.logo ? (
+          shop.logoWidthMm
+            // dot-exact logo: shown at exactly 8 pixels per mm, so each pixel is one printer dot
+            ? <img className="dot-img" src={shop.logo} alt="" style={{ width: `${shop.logoWidthMm}mm`, height: shop.logoHeightMm ? `${shop.logoHeightMm}mm` : 'auto', maxWidth: '100%', objectFit: 'contain', margin: '0 auto 1.5mm', display: 'block', imageRendering: 'pixelated' }} />
+            : <img src={shop.logo} alt="" style={{ maxWidth: '34mm', maxHeight: '18mm', margin: '0 auto 1.5mm', display: 'block' }} />
+        ) : null}
         <div style={{ fontSize: base * 1.45, fontWeight: 800, lineHeight: 1.15 }}>{shop.nameEn}</div>
         {bi && shop.nameSi ? <div style={{ fontSize: base * 1.15, fontWeight: 700 }}>{shop.nameSi}</div> : null}
         <div style={{ fontWeight: 600 }}>{shop.addressEn}</div>

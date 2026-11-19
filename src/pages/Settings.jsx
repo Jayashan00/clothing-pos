@@ -30,15 +30,27 @@ const SAMPLE = {
   payments: [{ method: 'cash', amount: 10000 }], change: 1215, pointsEarned: 87, pointsUsed: 0,
 };
 
-function resizeImage(file, max = 360) {
+// Every uploaded logo (PNG, JPG or SVG) is redrawn at the receipt printer's exact resolution:
+// 8 pixels per mm, at most 38 mm wide and 26 mm tall, pure black and white (thermal printers cannot
+// print grey). The printer then copies it dot for dot, so it never looks blurry.
+const DOTS = 8; const MAX_W_MM = 38; const MAX_H_MM = 26;
+function resizeImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image(); const r = new FileReader();
     r.onload = () => { img.src = r.result; };
     img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/png'));
+      const iw = img.naturalWidth || img.width || 600; const ih = img.naturalHeight || img.height || 400;
+      const s = Math.min((MAX_W_MM * DOTS) / iw, (MAX_H_MM * DOTS) / ih);
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(iw * s)); c.height = Math.max(1, Math.round(ih * s));
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
+      const d = ctx.getImageData(0, 0, c.width, c.height); const px = d.data;
+      for (let i = 0; i < px.length; i += 4) {
+        const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+        const v = lum < 115 ? 0 : 255; px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255;
+      }
+      ctx.putImageData(d, 0, 0);
+      resolve({ logo: c.toDataURL('image/png'), logoWidthMm: c.width / DOTS, logoHeightMm: c.height / DOTS });
     };
     img.onerror = reject; r.readAsDataURL(file);
   });
@@ -108,8 +120,8 @@ export default function Settings() {
               <div className="flex items-center gap-4">
                 <div className="w-24 h-24 rounded-2xl border-2 border-dashed line grid place-items-center overflow-hidden bg-white">{s.shop.logo ? <img src={s.shop.logo} alt="logo" className="max-w-full max-h-full object-contain" /> : <ImagePlus className="text-gray-400" />}</div>
                 <div className="space-y-2">
-                  <label className="btn btn-outline cursor-pointer"><Upload size={18} /> {t('set.uploadLogo')}<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files[0]; if (f) s.setSection('shop', { logo: await resizeImage(f) }); }} /></label>
-                  {s.shop.logo ? <button className="btn btn-ghost btn-sm block" onClick={() => s.setSection('shop', { logo: '' })}>{t('common.remove')}</button> : null}
+                  <label className="btn btn-outline cursor-pointer"><Upload size={18} /> {t('set.uploadLogo')}<input type="file" accept="image/*,.svg" className="hidden" onChange={async (e) => { const f = e.target.files[0]; if (f) s.setSection('shop', await resizeImage(f)); }} /></label>
+                  {s.shop.logo ? <button className="btn btn-ghost btn-sm block" onClick={() => s.setSection('shop', { logo: '', logoWidthMm: 0, logoHeightMm: 0 })}>{t('common.remove')}</button> : null}
                   <p className="hint">{t('set.logoHint')}</p>
                 </div>
               </div>
