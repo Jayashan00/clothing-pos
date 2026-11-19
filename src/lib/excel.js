@@ -100,7 +100,7 @@ export async function buildWorkbook(from, to, label) {
   const vou = vouchers.map((v) => ({ Code: v.code, Kind: v.type === 'creditNote' ? 'Credit note' : 'Gift voucher', Amount: v.amount, Balance: v.balance, Status: v.status, Issued: day(v.issuedAt), 'Valid until': day(v.expiresAt), Reference: v.ref || '' }));
 
   const wb = XLSX.utils.book_new();
-  wb.Props = { Title: `${s.shop.nameEn} – ${label}`, Author: 'Redi POS', CreatedDate: new Date() };
+  wb.Props = { Title: `${s.shop.nameEn} – ${label}`, Author: 'Nodemor POS', CreatedDate: new Date() };
   XLSX.utils.book_append_sheet(wb, sheet(XLSX, summary, [30, 34], ['Value']), 'Summary');
   XLSX.utils.book_append_sheet(wb, sheet(XLSX, bills, [12, 11, 7, 8, 18, 18, 12, 6, 11, 10, 9, 11, 10, 10, 10, 10, 10, 10, 10, 9, 10, 9, 8], ['Subtotal', 'Discount', 'Tax', 'Total', 'Cash', 'Card', 'LankaQR', 'Bank', 'Credit', 'Voucher', 'Points', 'Change', 'Returned']), 'Bills');
   XLSX.utils.book_append_sheet(wb, sheet(XLSX, items, [12, 11, 7, 10, 28, 26, 16, 8, 10, 15, 6, 5, 10, 9, 11, 10, 10, 8], ['Price', 'Discount', 'Net', 'Cost each', 'Profit']), 'Bill items');

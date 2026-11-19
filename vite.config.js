@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => {
               navigateFallback: '/index.html',
             },
             manifest: {
-              name: 'Redi POS — Clothing & Textile',
-              short_name: 'Redi POS',
+              name: 'Nodemor POS — Clothing & Textile',
+              short_name: 'Nodemor POS',
               description: 'Sinhala & English POS for clothing and textile shops',
               theme_color: '#1F2A5C',
               background_color: '#F5F6FA',

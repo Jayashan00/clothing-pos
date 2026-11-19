@@ -14,7 +14,7 @@ export async function exportAll() {
 }
 
 export async function importAll(data) {
-  if (!data || data.app !== 'redipos' || !data.tables) throw new Error('This is not a Redi POS backup file');
+  if (!data || data.app !== 'redipos' || !data.tables) throw new Error('This is not a Nodemor POS backup file');
   syncState.applying = true;
   try {
     await db.transaction('rw', ALL.map((t) => db[t]), async () => {

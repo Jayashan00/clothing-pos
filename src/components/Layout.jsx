@@ -52,7 +52,7 @@ export function Brand({ compact, light }) {
         : <div className="w-10 h-10 rounded-xl bg-saffron-500 text-indigo-800 grid place-items-center shrink-0"><ClothingIcon id="tshirt" size={24} stroke={2} /></div>}
       {!compact ? (
         <div className="min-w-0 leading-tight">
-          <p className={`font-display font-extrabold text-lg ${light ? 'text-white' : ''}`}>Redi POS</p>
+          <p className={`font-display font-extrabold text-lg ${light ? 'text-white' : ''}`}>Nodemor POS</p>
           <p className={`text-xs truncate ${light ? 'text-indigo-200' : 'muted'}`}>{shop.nameEn}</p>
         </div>
       ) : null}

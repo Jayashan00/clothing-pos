@@ -1,4 +1,4 @@
-# Redi POS — Server package
+# Nodemor POS — Server package
 
 This package runs the whole system on one Ubuntu server (Hostinger VPS or any other):
 the POS app **and** its API on the same address, e.g. `https://pos.nodemor.io`.
@@ -56,7 +56,7 @@ At the end it prints the **secret key**. Write it down. It's also saved (root on
 3. Sign in as **Owner**, PIN **1234**. Go to **Staff** and change the PIN immediately.
 4. **Settings → Shop details** (name, address, logo).
 5. **Settings → Backup & reset → Choose backup folder.** Pick a folder in Google Drive / OneDrive on this PC, or a USB drive.
-6. In Chrome: menu → **Install Redi POS** (works like an app, opens without internet).
+6. In Chrome: menu → **Install Nodemor POS** (works like an app, opens without internet).
 
 ## 5. Every other counter
 

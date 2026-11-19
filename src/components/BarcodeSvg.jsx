@@ -20,14 +20,16 @@ export default function BarcodeSvg({ value, format = 'EAN13', moduleMm = 0.25, h
         const steps = [0.375, 0.33, 0.25, 0.1875, 0.17, 0.125];
         mm = steps.find((s) => w * s <= maxWidthMm) || maxWidthMm / w;
       }
-      el.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      // one spare module on the right: room to shift the bars onto the printer's dot grid at print time
+      el.setAttribute('viewBox', `0 0 ${w + 1} ${h}`);
       el.setAttribute('preserveAspectRatio', 'none');
-      el.setAttribute('width', `${(w * mm).toFixed(3)}mm`);
+      el.setAttribute('width', `${((w + 1) * mm).toFixed(3)}mm`);
+      el.dataset.unitMm = String(mm);
       el.setAttribute('height', `${heightMm}mm`);
       el.style.removeProperty('transform');
     } catch {
       el.innerHTML = '';
     }
   }, [value, format, moduleMm, heightMm, maxWidthMm]);
-  return <svg ref={ref} className={className} style={{ display: 'block', shapeRendering: 'crispEdges', ...style }} />;
+  return <svg ref={ref} className={`bc-svg ${className}`} style={{ display: 'block', shapeRendering: 'crispEdges', ...style }} />;
 }

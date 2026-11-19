@@ -171,6 +171,11 @@ export default function Labels() {
                       <input className="input !min-h-[2.25rem] !px-2" inputMode="decimal" value={cfg[k]} onChange={(e) => setCfg({ [k]: e.target.value.replace(/[^\d.-]/g, '') })} /></label>
                   ))}
                 </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[['leftMm', -0.5, '←'], ['leftMm', 0.5, '→'], ['topMm', -0.5, '↑'], ['topMm', 0.5, '↓']].map(([k, d, a]) => (
+                    <button key={k + d} className="btn btn-ghost btn-sm text-lg" title={t('labels.nudge')} onClick={() => setCfg({ [k]: Math.round(((Number(cfg[k]) || 0) + d) * 10) / 10 })}>{a}</button>
+                  ))}
+                </div>
                 <button className="btn btn-outline btn-sm w-full" onClick={() => printLabelAlignment(settings)}><Printer size={16} /> {t('labels.alignPrint')}</button>
                 <p className="hint">{t('labels.alignHint')}</p>
               </div>

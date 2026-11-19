@@ -10,6 +10,28 @@ function cleanup() {
 }
 
 // Renders a React element into #print-root and opens the print dialog.
+// Thermal printers print in whole dots (8 per mm at 203 dpi). Chrome places each barcode on its own
+// 1/96-inch pixel grid, which does not line up with the dot grid, so a 2-dot gap can become 1 or 3 dots
+// and the barcode reads badly. This moves the bars of every barcode so each bar edge falls exactly on a
+// printer dot, measured from the page's left edge. Run while the print copy is laid out.
+const DOTS_PER_MM = 8;
+function alignBarcodesToDots(host) {
+  host.querySelectorAll('[data-dot-page]').forEach((pg) => {
+    const pageLeft = pg.getBoundingClientRect().left;
+    pg.querySelectorAll('svg.bc-svg').forEach((svg) => {
+      const unitMm = Number(svg.dataset.unitMm);
+      const vb = (svg.getAttribute('viewBox') || '').split(' ').map(Number);
+      if (!unitMm || vb.length !== 4) return;
+      const leftPx = Math.round(svg.getBoundingClientRect().left - pageLeft); // Chrome snaps to whole CSS px
+      const dots = (leftPx * 25.4 / 96) * DOTS_PER_MM;
+      const frac = dots - Math.floor(dots);
+      const shiftDots = frac < 1e-6 || frac > 1 - 1e-6 ? 0 : 1 - frac;
+      const shiftUnits = (shiftDots / DOTS_PER_MM) / unitMm;
+      svg.setAttribute('viewBox', `${(-shiftUnits).toFixed(5)} ${vb[1]} ${vb[2]} ${vb[3]}`);
+    });
+  });
+}
+
 export async function printReact(element, { page = 'size: 80mm auto; margin: 0' } = {}) {
   cleanup();
   const host = document.getElementById('print-root');
@@ -21,6 +43,10 @@ export async function printReact(element, { page = 'size: 80mm auto; margin: 0' 
   flushSync(() => root.render(element));
   try { await document.fonts.ready; } catch { /* ignore */ }
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // lay the print copy out off-screen for a moment so positions can be measured
+  host.style.display = 'block'; host.style.position = 'absolute'; host.style.left = '-10000px'; host.style.top = '0';
+  try { alignBarcodesToDots(host); } catch { /* printing still works without it */ }
+  host.removeAttribute('style');
   // Roll paper: "size: 80mm auto" is not valid CSS, so measure the receipt and set its
   // exact length. Otherwise Chrome falls back to A4/Letter and may shrink the text.
   if (/\bauto\b/.test(page)) {
@@ -45,7 +71,7 @@ export const PAPER = {
 export const LABEL_TEMPLATES = {
   // Zebra ZD230 roll used by the shop: 1.2 × 0.8 in labels (30.5 × 20 mm), several across.
   // One printed "page" = one row of labels. Gap and left offset are set in Barcode labels.
-  'z3-30x20': { w: 30.5, h: 20, kind: 'multi', cols: 3, name: '1.2 × 0.8 in, 3 across (Zebra roll)' },
+  'z3-30x20': { w: 30.5, h: 20, kind: 'multi', cols: 3, pageW: 97, name: '1.2 × 0.8 in, 3 across (Zebra roll)' },
   'z2-30x20': { w: 30.5, h: 20, kind: 'multi', cols: 2, name: '1.2 × 0.8 in, 2 across' },
   'z1-30x20': { w: 30.5, h: 20, kind: 'roll', name: '1.2 × 0.8 in, single' },
   '38x25': { w: 38, h: 25, kind: 'roll', name: '38 × 25 mm roll' },
@@ -59,6 +85,8 @@ export const LABEL_TEMPLATES = {
 };
 
 // Width of one printed row for multi-across rolls, in mm.
+// A fixed page width (pageW) keeps the page equal to the size set once in the printer driver,
+// so moving the labels (Left / Gap) never changes the page and the printer never rescales it.
 export const rowWidth = (tpl, cfg) => tpl.kind === 'multi'
-  ? Math.round((2 * (Number(cfg.leftMm) || 0) + tpl.cols * tpl.w + (tpl.cols - 1) * (Number(cfg.gapMm) || 0)) * 100) / 100
+  ? tpl.pageW || Math.round((2 * (Number(cfg.leftMm) || 0) + tpl.cols * tpl.w + (tpl.cols - 1) * (Number(cfg.gapMm) || 0)) * 100) / 100
   : tpl.w;

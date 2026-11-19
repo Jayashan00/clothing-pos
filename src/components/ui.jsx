@@ -8,14 +8,19 @@ import { useAuth } from '../store/auth';
 /* ---------- Modal ---------- */
 export function Modal({ open, onClose, title, children, footer, size = 'md', icon }) {
   const ref = useRef(null);
+  // Keep the latest onClose without re-running the effect: parents pass a new function on
+  // every render, and re-running would move the cursor back to the first box on each keystroke.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closeRef.current?.(); };
     window.addEventListener('keydown', onKey);
     const prev = document.activeElement;
-    setTimeout(() => ref.current?.querySelector('input,select,textarea,button[data-autofocus]')?.focus(), 30);
-    return () => { window.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [open, onClose]);
+    // focus the first box only once, when the window opens
+    const id = setTimeout(() => ref.current?.querySelector('input,select,textarea,button[data-autofocus]')?.focus(), 30);
+    return () => { clearTimeout(id); window.removeEventListener('keydown', onKey); prev?.focus?.(); };
+  }, [open]);
   if (!open) return null;
   const w = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl' }[size];
   return (

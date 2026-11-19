@@ -35,9 +35,9 @@ export const defaultSettings = {
   },
   labels: {
     template: 'z3-30x20',
-    gapMm: 2.5,      // space between labels side by side (multi-across rolls)
-    leftMm: 0.25,    // move the whole row right (+) or left (−)
-    topMm: 0,        // move everything down (+) or up (−)
+    gapMm: 1.5,      // space between labels side by side (measured on the shop's Zebra roll)
+    leftMm: 0.5,     // move the whole row right (+) or left (−)
+    topMm: 0.8,      // move everything down (+) or up (−)
     showCostCode: true,
     costCode: { digits: 'GSAREHLIYN', zz: 'GE' }, // index = digit (0..9); zz = the code for "00"
     format: 'EAN13',
@@ -76,7 +76,7 @@ export const useSettings = create(
     }),
     {
       name: 'redipos-settings',
-      version: 2,
+      version: 3,
       merge,
       // Upgrade saved settings without losing anything (server address, key, counter code…)
       migrate: (state, version) => {
@@ -86,6 +86,13 @@ export const useSettings = create(
             st.shop = { ...defaultSettings.shop };
           }
           if (st.labels && (!st.labels.template || st.labels.template === '38x25')) st.labels = { ...st.labels, template: 'z3-30x20' };
+        }
+        if (version < 3 && st.labels) {
+          // first real print showed the old spacing drifting right and cutting the top: use the measured values
+          const l = st.labels;
+          if (Number(l.gapMm) === 2.5 || l.gapMm === undefined) l.gapMm = 1.5;
+          if (Number(l.leftMm) === 0.25 || l.leftMm === undefined) l.leftMm = 0.5;
+          if (Number(l.topMm) === 0 || l.topMm === undefined) l.topMm = 0.8;
         }
         return st;
       },

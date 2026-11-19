@@ -21,7 +21,7 @@ export function Receipt({ sale, settings, reprint }) {
   const methodName = (m) => L(lang, 'pay.' + m, bi);
   const wide = r.paper === 'A4' || r.paper === 'A5';
   return (
-    <div className="p-doc" style={{ width: wide ? '100%' : `${paper.width}mm`, padding: wide ? 0 : `3mm ${(paper.width - paper.content) / 2}mm 6mm`, fontSize: base, boxSizing: 'border-box' }}>
+    <div className="p-doc" data-dot-page="1" style={{ width: wide ? '100%' : `${paper.width}mm`, padding: wide ? 0 : `3mm ${(paper.width - paper.content) / 2}mm 6mm`, fontSize: base, boxSizing: 'border-box' }}>
       <div style={{ textAlign: 'center' }}>
         {r.showLogo && shop.logo ? <img src={shop.logo} alt="" style={{ maxWidth: '34mm', maxHeight: '18mm', margin: '0 auto 1.5mm', display: 'block', filter: 'grayscale(1) contrast(2)' }} /> : null}
         <div style={{ fontSize: base * 1.45, fontWeight: 800, lineHeight: 1.15 }}>{shop.nameEn}</div>
@@ -81,7 +81,10 @@ export function Receipt({ sale, settings, reprint }) {
         {bi && r.policySi ? <div>{r.policySi}</div> : null}
         <div style={{ fontWeight: 800, fontSize: base * 1.1, marginTop: '1.5mm' }}>{r.footerEn}</div>
         {bi && r.footerSi ? <div style={{ fontWeight: 800, fontSize: base * 1.1 }}>{r.footerSi}</div> : null}
-        <div style={{ marginTop: '2mm', fontSize: base * 0.8 }}>Redi POS</div>
+        <div style={{ marginTop: '2.5mm', borderTop: '1px solid #000', paddingTop: '1.2mm', fontSize: base * 0.78, fontWeight: 700, lineHeight: 1.3 }}>
+          <div>Nodemor POS</div>
+          <div>nodemor.io | +94 71 924 7009</div>
+        </div>
       </div>
     </div>
   );
@@ -112,7 +115,8 @@ export function Label({ item, cfg, tpl, shop, cur }) {
   //  shop name · product · size/colour + PRICE · barcode · number + secret cost code
   if (!tag && h <= 22) {
     return (
-      <div className="p-doc" style={{ ...box, padding: '0.9mm 1mm 0.6mm', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+      // generous inner margin: a label printed up to ~1 mm off still keeps all its text on the sticker
+      <div className="p-doc" style={{ ...box, padding: '1.3mm 1.7mm 0.8mm', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
         {cfg.showShop ? <div style={{ ...one, fontSize: '5pt', fontWeight: 800, textAlign: 'center', lineHeight: 1.05 }}>{shop.nameEn}</div> : null}
         <div style={{ ...one, fontSize: '6.5pt', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>{name}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1mm', lineHeight: 1.05 }}>
@@ -120,7 +124,7 @@ export function Label({ item, cfg, tpl, shop, cur }) {
           {cfg.showPrice ? <span style={{ fontSize: '8.5pt', fontWeight: 800, whiteSpace: 'nowrap' }}>{priceTxt(item.price, cur)}</span> : null}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.3mm' }}>
-          <BarcodeSvg value={item.barcode} format={cfg.format} moduleMm={cfg.moduleMm || 0.25} heightMm={cfg.showShop ? 7.2 : 8.2} maxWidthMm={w - 2} />
+          <BarcodeSvg value={item.barcode} format={cfg.format} moduleMm={cfg.moduleMm || 0.25} heightMm={cfg.showShop ? 6.5 : 7.5} maxWidthMm={w - 3.6} />
         </div>
         <div style={{ display: 'flex', justifyContent: code ? 'space-between' : 'center', alignItems: 'baseline', lineHeight: 1.05, marginTop: '0.2mm' }}>
           <span style={{ fontSize: '5pt', letterSpacing: '0.2px' }}>{item.barcode}</span>
@@ -156,7 +160,7 @@ export function Label({ item, cfg, tpl, shop, cur }) {
 export function LabelRow({ items, cfg, tpl, shop, cur, outline }) {
   const gap = Number(cfg.gapMm) || 0; const left = Number(cfg.leftMm) || 0; const top = Number(cfg.topMm) || 0;
   return (
-    <div style={{ position: 'relative', width: `${rowWidth(tpl, cfg)}mm`, height: `${tpl.h}mm`, overflow: 'hidden', background: '#fff' }}>
+    <div data-dot-page="1" style={{ position: 'relative', width: `${rowWidth(tpl, cfg)}mm`, height: `${tpl.h}mm`, overflow: 'hidden', background: '#fff' }}>
       {Array.from({ length: tpl.cols }).map((_, c) => (
         <div key={c} style={{ position: 'absolute', top: `${top}mm`, left: `${left + c * (tpl.w + gap)}mm`, width: `${tpl.w}mm`, height: `${tpl.h}mm`, outline: outline ? '0.3mm dashed #000' : 'none', outlineOffset: '-0.3mm' }}>
           {items[c] ? <Label item={items[c]} cfg={cfg} tpl={tpl} shop={shop} cur={cur} /> : null}
@@ -176,7 +180,7 @@ export function LabelPrintout({ items, settings, templateId }) {
     return <div>{rows.map((r, i) => <div key={i} className="p-page-break"><LabelRow items={r} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>)}</div>;
   }
   if (tpl.kind === 'roll') {
-    return <div>{flat.map((it, i) => <div key={i} className="p-page-break"><Label item={it} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>)}</div>;
+    return <div>{flat.map((it, i) => <div key={i} className="p-page-break" data-dot-page="1"><Label item={it} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} /></div>)}</div>;
   }
   const per = tpl.cols * tpl.rows;
   const sheets = [];
@@ -185,7 +189,7 @@ export function LabelPrintout({ items, settings, templateId }) {
   return (
     <div>
       {sheets.map((sheet, s) => (
-        <div key={s} className="p-page-break" style={{ width: '210mm', height: '296mm', padding: `${my}mm ${mx}mm`, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: `repeat(${tpl.cols}, ${tpl.w}mm)`, gridAutoRows: `${tpl.h}mm`, overflow: 'hidden' }}>
+        <div key={s} className="p-page-break" data-dot-page="1" style={{ width: '210mm', height: '296mm', padding: `${my}mm ${mx}mm`, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: `repeat(${tpl.cols}, ${tpl.w}mm)`, gridAutoRows: `${tpl.h}mm`, overflow: 'hidden' }}>
           {sheet.map((it, i) => <Label key={i} item={it} cfg={cfg} tpl={tpl} shop={settings.shop} cur={settings.currency} />)}
         </div>
       ))}

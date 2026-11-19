@@ -37,7 +37,7 @@ export default function Landing() {
       <header className="sticky top-0 z-30 border-b line backdrop-blur" style={{ background: 'color-mix(in srgb, var(--surface) 88%, transparent)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
           <Brand compact />
-          <span className="font-display font-extrabold text-lg">Redi POS</span>
+          <span className="font-display font-extrabold text-lg">Nodemor POS</span>
           <div className="flex-1" />
           <LangSwitch />
           <Link to="/login" className="btn btn-primary hidden sm:inline-flex">{t('land.open')}</Link>
@@ -197,7 +197,7 @@ export default function Landing() {
       <footer className="border-t line">
         <div className="weave h-1.5" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-wrap gap-4 items-center justify-between text-sm muted">
-          <span>© {new Date().getFullYear()} Redi POS · {t('land.footer')}</span>
+          <span>© {new Date().getFullYear()} Nodemor POS · {t('land.footer')}</span>
           <span>{settings.shop.nameEn}</span>
         </div>
       </footer>

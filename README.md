@@ -1,4 +1,4 @@
-# Redi POS — Clothing & Textile Point of Sale
+# Nodemor POS — Clothing & Textile Point of Sale
 
 Bilingual (සිංහල / English) POS for clothing and textile shops in Sri Lanka.
 Offline-first: billing never stops, even when the internet or the server is down.
@@ -169,7 +169,7 @@ same item before syncing both end at 10 − 5 = 5.
 ## 9. Customising the brand
 
 - Shop name, logo, receipts: in the app under **Settings** (no code needed).
-- Product name “Redi POS”: `src/components/Layout.jsx` (`Brand`), `index.html`, `vite.config.js` (PWA manifest).
+- Product name “Nodemor POS”: `src/components/Layout.jsx` (`Brand`), `index.html`, `vite.config.js` (PWA manifest).
 - Colours: `tailwind.config.js` (`indigo` = handloom indigo, `saffron` = accent, `maroon`, `leaf`).
 - Landing page text: `src/i18n/en.js` and `src/i18n/si.js` (keys starting with `land.`).
 - App icon: `public/favicon.svg`.

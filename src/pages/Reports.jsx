@@ -24,7 +24,7 @@ function ReportPrint({ title, subtitle, columns, rows, shop }) {
         <thead><tr>{columns.map((c) => <th key={c.label} style={{ textAlign: c.right ? 'right' : 'left', borderBottom: '2px solid #000', padding: '4px 3px' }}>{c.label}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={i}>{columns.map((c) => <td key={c.label} style={{ textAlign: c.right ? 'right' : 'left', borderBottom: '1px solid #000', padding: '3px' }}>{typeof c.value === 'function' ? c.value(r) : r[c.value]}</td>)}</tr>)}</tbody>
       </table>
-      <div style={{ marginTop: 10, fontSize: 9 }}>Printed {new Date().toLocaleString('en-GB')} · Redi POS</div>
+      <div style={{ marginTop: 10, fontSize: 9 }}>Printed {new Date().toLocaleString('en-GB')} · Nodemor POS</div>
     </div>
   );
 }
